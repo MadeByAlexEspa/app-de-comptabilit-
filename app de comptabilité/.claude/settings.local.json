@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh repo:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(npm install:*)",
+      "Read(//usr/local/**)",
+      "Read(//usr/**)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/AlexanderESPA/AppData/Roaming/**)",
+      "Read(//c/Users/AlexanderESPA/AppData/Local/**)",
+      "Bash(gh auth:*)"
+    ]
+  }
+}

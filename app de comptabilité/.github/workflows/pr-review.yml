@@ -1,0 +1,30 @@
+name: AI Dev Stack — PR Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, ready_for_review]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --max-turns 15
+            --model claude-sonnet-4-6
+          prompt: |
+            Run /review-pr ${{ github.event.pull_request.number }}
+
+            1. Get the PR diff: gh pr diff ${{ github.event.pull_request.number }}
+            2. Run proofreader and cybersecurity agents in parallel on modified files
+            3. Post a structured review comment with blocking and non-blocking findings
+            4. End with APPROVED or CHANGES REQUESTED verdict

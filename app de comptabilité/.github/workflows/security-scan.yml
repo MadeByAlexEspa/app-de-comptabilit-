@@ -1,0 +1,35 @@
+name: AI Dev Stack — Nightly Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: |
+            --max-turns 25
+            --model claude-opus-4-6
+          prompt: |
+            Run /security-audit full
+
+            Audit server/src/ and client/src/ using the full OWASP Top 10 checklist.
+            Include npm audit results.
+            For any Critical or High severity findings, create a GitHub issue:
+            gh issue create --title "[Security] <Severity>: <short description>" \
+              --body "**Severity:** <level>\n**File:** <path:line>\n**Description:** <details>\n**Remediation:** <steps>"
