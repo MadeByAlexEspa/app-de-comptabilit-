@@ -10,7 +10,18 @@
       "Read(//c/Program Files/**)",
       "Read(//c/Users/AlexanderESPA/AppData/Roaming/**)",
       "Read(//c/Users/AlexanderESPA/AppData/Local/**)",
-      "Bash(gh auth:*)"
+      "Bash(gh auth:*)",
+      "Bash(npm --version)",
+      "Bash(powershell.exe:*)",
+      "Bash(npm run:*)",
+      "Bash(npm view:*)",
+      "Bash(node:*)",
+      "Bash(taskkill /F /IM node.exe)",
+      "Bash(tasklist)",
+      "Bash(cmd /c \"taskkill /F /IM node.exe\")",
+      "Bash(cmd /c \"for /f \\\\\"tokens=5\\\\\" %a in \\('netstat -aon ^| findstr \\\\\":3000 :3001 :5173 :5174 :5175 :5176\\\\\"'\\) do taskkill /F /PID %a\")",
+      "Bash(cmd:*)",
+      "Bash(powershell:*)"
     ]
   }
 }

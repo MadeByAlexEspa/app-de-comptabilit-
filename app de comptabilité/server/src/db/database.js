@@ -1,6 +1,32 @@
-const Database = require('better-sqlite3');
+const { Database } = require('node-sqlite3-wasm');
 const path = require('path');
 const fs = require('fs');
+
+// Normalise params so the routes can use the same calling convention as
+// better-sqlite3:
+//   - plain object { key: val }  → { '@key': val }  (named @param SQL)
+//   - scalar string / number     → [value]           (positional ? SQL)
+//   - array / null / undefined   → passed as-is
+function normaliseParams(params) {
+  if (params === null || params === undefined) return params;
+  if (Array.isArray(params)) return params;
+  if (typeof params === 'object') {
+    return Object.fromEntries(
+      Object.entries(params).map(([k, v]) => [`@${k}`, v])
+    );
+  }
+  // scalar (string, number, …)
+  return [params];
+}
+
+// Wrap a raw Statement so callers don't need to care about the prefix rule.
+function wrapStmt(stmt) {
+  return {
+    run(params) { return stmt.run(normaliseParams(params)); },
+    get(params) { return stmt.get(normaliseParams(params)); },
+    all(params) { return stmt.all(normaliseParams(params)); },
+  };
+}
 
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(process.cwd(), process.env.DB_PATH)
@@ -12,11 +38,37 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const db = new Database(DB_PATH);
+const _db = new Database(DB_PATH);
 
 // Enable WAL mode for better concurrent performance
-db.pragma('journal_mode = WAL');
-db.pragma('foreign_keys = ON');
+_db.run('PRAGMA journal_mode = WAL');
+_db.run('PRAGMA foreign_keys = ON');
+
+// Proxy that wraps prepare() so all statements get the normalised params shim.
+// All other methods (run, get, all, exec, close) are forwarded directly.
+const db = new Proxy(_db, {
+  get(target, prop) {
+    if (prop === 'prepare') {
+      return (sql) => wrapStmt(target.prepare(sql));
+    }
+    const val = target[prop];
+    return typeof val === 'function' ? val.bind(target) : val;
+  },
+});
+
+// Helper: wrap a function in a BEGIN/COMMIT transaction
+function transaction(fn) {
+  return function (...args) {
+    db.run('BEGIN');
+    try {
+      fn(...args);
+      db.run('COMMIT');
+    } catch (e) {
+      db.run('ROLLBACK');
+      throw e;
+    }
+  };
+}
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -58,7 +110,7 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-const factureCount = db.prepare('SELECT COUNT(*) AS cnt FROM factures').get();
+const factureCount = db.get('SELECT COUNT(*) AS cnt FROM factures');
 if (factureCount.cnt === 0) {
   const insertFacture = db.prepare(`
     INSERT INTO factures (numero, date, client, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
@@ -118,7 +170,7 @@ if (factureCount.cnt === 0) {
     },
   ];
 
-  const insertManyFactures = db.transaction((rows) => {
+  const insertManyFactures = transaction((rows) => {
     for (const row of rows) {
       const montant_tva = round2(row.montant_ht * row.taux_tva / 100);
       const montant_ttc = round2(row.montant_ht + montant_tva);
@@ -128,7 +180,7 @@ if (factureCount.cnt === 0) {
   insertManyFactures(seedFactures);
 }
 
-const depenseCount = db.prepare('SELECT COUNT(*) AS cnt FROM depenses').get();
+const depenseCount = db.get('SELECT COUNT(*) AS cnt FROM depenses');
 if (depenseCount.cnt === 0) {
   const insertDepense = db.prepare(`
     INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
@@ -183,7 +235,7 @@ if (depenseCount.cnt === 0) {
     },
   ];
 
-  const insertManyDepenses = db.transaction((rows) => {
+  const insertManyDepenses = transaction((rows) => {
     for (const row of rows) {
       const montant_tva = round2(row.montant_ht * row.taux_tva / 100);
       const montant_ttc = round2(row.montant_ht + montant_tva);
