@@ -6,6 +6,39 @@ function today() {
   return new Date().toISOString().slice(0, 7) // YYYY-MM
 }
 
+const LABEL_TAUX = {
+  '20':  '20 % — Taux normal (art. 278 CGI)',
+  '10':  '10 % — Taux intermédiaire (art. 278 bis CGI)',
+  '5.5': '5,5 % — Taux réduit (art. 278-0 bis CGI)',
+  '2.1': '2,1 % — Taux particulier (art. 281 nonies CGI)',
+  '0':   '0 % — Exonéré (art. 261 CGI)',
+}
+
+function TauxTable({ par_taux }) {
+  const lignes = Object.entries(par_taux).filter(([, v]) => v.base_ht !== 0 || v.tva !== 0)
+  if (lignes.length === 0) return <p className={styles.empty}>Aucune opération.</p>
+  return (
+    <table className={styles.tauxTable}>
+      <thead>
+        <tr>
+          <th>Taux</th>
+          <th className={styles.right}>Base HT</th>
+          <th className={styles.right}>TVA</th>
+        </tr>
+      </thead>
+      <tbody>
+        {lignes.map(([taux, { base_ht, tva }]) => (
+          <tr key={taux}>
+            <td>{LABEL_TAUX[taux] || `${taux}%`}</td>
+            <td className={styles.right}>{formatEur(base_ht)}</td>
+            <td className={styles.right}><strong>{formatEur(tva)}</strong></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
 export default function TVA() {
   const [mois, setMois] = useState(today())
   const [data, setData] = useState(null)
@@ -21,15 +54,12 @@ export default function TVA() {
       .catch(e => { setError(e.message); setLoading(false) })
   }, [mois])
 
-  const solde = data ? data.tva_a_reverser : 0
-  const soldePositif = solde >= 0
-
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>TVA</h1>
-          <p className={styles.pageSubtitle}>Déclaration mensuelle de TVA</p>
+          <p className={styles.pageSubtitle}>Déclaration mensuelle — conforme CA3 (art. 287 CGI)</p>
         </div>
         <div className={styles.monthPicker}>
           <label htmlFor="mois" className={styles.label}>Mois</label>
@@ -54,28 +84,67 @@ export default function TVA() {
 
       {data && !loading && (
         <>
+          {/* ── KPI ─────────────────────────────────────────────────────── */}
           <div className={styles.kpiRow}>
             <div className={styles.kpiCard}>
               <p className={styles.kpiLabel}>TVA Collectée</p>
-              <p className={styles.kpiValue}>{formatEur(data.tva_collectee)}</p>
-              <p className={styles.kpiSub}>Sur les ventes du mois</p>
+              <p className={styles.kpiValue}>{formatEur(data.collectee.total_tva)}</p>
+              <p className={styles.kpiSub}>Sur ventes du mois (44571)</p>
             </div>
             <div className={styles.kpiCard}>
               <p className={styles.kpiLabel}>TVA Déductible</p>
-              <p className={styles.kpiValue}>{formatEur(data.tva_deductible)}</p>
-              <p className={styles.kpiSub}>Sur les achats du mois</p>
+              <p className={styles.kpiValue}>{formatEur(data.deductible.total_tva)}</p>
+              <p className={styles.kpiSub}>Sur achats du mois (44566)</p>
             </div>
-            <div className={`${styles.kpiCard} ${soldePositif ? styles.kpiCardDue : styles.kpiCardCredit}`}>
-              <p className={styles.kpiLabel}>TVA à Reverser</p>
-              <p className={`${styles.kpiValue} ${soldePositif ? styles.valueDanger : styles.valueSuccess}`}>
-                {formatEur(Math.abs(solde))}
-              </p>
-              <p className={styles.kpiSub}>
-                {soldePositif ? 'Montant à reverser à l\'État' : 'Crédit de TVA'}
-              </p>
+            {data.tva_a_reverser > 0 ? (
+              <div className={`${styles.kpiCard} ${styles.kpiCardDue}`}>
+                <p className={styles.kpiLabel}>TVA à Reverser</p>
+                <p className={`${styles.kpiValue} ${styles.valueDanger}`}>{formatEur(data.tva_a_reverser)}</p>
+                <p className={styles.kpiSub}>À régler à l'État (44551)</p>
+              </div>
+            ) : (
+              <div className={`${styles.kpiCard} ${styles.kpiCardCredit}`}>
+                <p className={styles.kpiLabel}>Crédit de TVA</p>
+                <p className={`${styles.kpiValue} ${styles.valueSuccess}`}>{formatEur(data.credit_tva)}</p>
+                <p className={styles.kpiSub}>Remboursable ou reportable (44567)</p>
+              </div>
+            )}
+          </div>
+
+          {/* ── Ventilation par taux (structure CA3) ─────────────────── */}
+          <div className={styles.ventilationGrid}>
+            <div className={styles.ventilationCard}>
+              <h2 className={styles.sectionTitle}>
+                TVA Collectée — Ventilation par taux
+                <span className={styles.sectionNote}>Lignes A1–A4 de la CA3</span>
+              </h2>
+              <TauxTable par_taux={data.collectee.par_taux} />
+              {Object.keys(data.collectee.par_taux).length > 0 && (
+                <div className={styles.ventilationTotal}>
+                  Total base HT : <strong>{formatEur(data.collectee.total_base_ht)}</strong>
+                  &nbsp;·&nbsp;
+                  Total TVA : <strong>{formatEur(data.collectee.total_tva)}</strong>
+                </div>
+              )}
+            </div>
+
+            <div className={styles.ventilationCard}>
+              <h2 className={styles.sectionTitle}>
+                TVA Déductible — Ventilation par taux
+                <span className={styles.sectionNote}>Ligne 20 de la CA3</span>
+              </h2>
+              <TauxTable par_taux={data.deductible.par_taux} />
+              {Object.keys(data.deductible.par_taux).length > 0 && (
+                <div className={styles.ventilationTotal}>
+                  Total base HT : <strong>{formatEur(data.deductible.total_base_ht)}</strong>
+                  &nbsp;·&nbsp;
+                  Total TVA : <strong>{formatEur(data.deductible.total_tva)}</strong>
+                </div>
+              )}
             </div>
           </div>
 
+          {/* ── Détail factures ──────────────────────────────────────── */}
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
               Factures du mois
@@ -91,7 +160,7 @@ export default function TVA() {
                     <th>Date</th>
                     <th>Client</th>
                     <th className={styles.right}>HT</th>
-                    <th className={styles.right}>Taux TVA</th>
+                    <th className={styles.right}>Taux</th>
                     <th className={styles.right}>TVA</th>
                     <th className={styles.right}>TTC</th>
                   </tr>
@@ -112,22 +181,17 @@ export default function TVA() {
                 <tfoot>
                   <tr>
                     <td colSpan={3}><strong>Total</strong></td>
-                    <td className={styles.right}>
-                      <strong>{formatEur(data.detail_factures.reduce((s, f) => s + f.montant_ht, 0))}</strong>
-                    </td>
+                    <td className={styles.right}><strong>{formatEur(data.collectee.total_base_ht)}</strong></td>
                     <td />
-                    <td className={styles.right}>
-                      <strong>{formatEur(data.tva_collectee)}</strong>
-                    </td>
-                    <td className={styles.right}>
-                      <strong>{formatEur(data.detail_factures.reduce((s, f) => s + f.montant_ttc, 0))}</strong>
-                    </td>
+                    <td className={styles.right}><strong>{formatEur(data.collectee.total_tva)}</strong></td>
+                    <td className={styles.right}><strong>{formatEur(data.detail_factures.reduce((s, f) => s + f.montant_ttc, 0))}</strong></td>
                   </tr>
                 </tfoot>
               </table>
             )}
           </div>
 
+          {/* ── Détail dépenses ──────────────────────────────────────── */}
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
               Dépenses du mois
@@ -143,7 +207,7 @@ export default function TVA() {
                     <th>Fournisseur</th>
                     <th>Description</th>
                     <th className={styles.right}>HT</th>
-                    <th className={styles.right}>Taux TVA</th>
+                    <th className={styles.right}>Taux</th>
                     <th className={styles.right}>TVA</th>
                     <th className={styles.right}>TTC</th>
                   </tr>
@@ -164,16 +228,10 @@ export default function TVA() {
                 <tfoot>
                   <tr>
                     <td colSpan={3}><strong>Total</strong></td>
-                    <td className={styles.right}>
-                      <strong>{formatEur(data.detail_depenses.reduce((s, d) => s + d.montant_ht, 0))}</strong>
-                    </td>
+                    <td className={styles.right}><strong>{formatEur(data.deductible.total_base_ht)}</strong></td>
                     <td />
-                    <td className={styles.right}>
-                      <strong>{formatEur(data.tva_deductible)}</strong>
-                    </td>
-                    <td className={styles.right}>
-                      <strong>{formatEur(data.detail_depenses.reduce((s, d) => s + d.montant_ttc, 0))}</strong>
-                    </td>
+                    <td className={styles.right}><strong>{formatEur(data.deductible.total_tva)}</strong></td>
+                    <td className={styles.right}><strong>{formatEur(data.detail_depenses.reduce((s, d) => s + d.montant_ttc, 0))}</strong></td>
                   </tr>
                 </tfoot>
               </table>

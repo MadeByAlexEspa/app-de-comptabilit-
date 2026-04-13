@@ -2,28 +2,54 @@ import { useState, useEffect } from 'react'
 import styles from './EntryForm.module.css'
 import { formatEur } from '../../lib/api.js'
 
-const TAUX_TVA = [0, 5.5, 10, 20]
-
-const CATEGORIES_REVENUS = [
-  'Prestations de services',
-  'Vente de produits',
-  'Conseil',
-  'Formation',
-  'Autre recette',
+// Taux légaux de TVA (CGI art. 278 à 281 nonies)
+// 20%   : taux normal     (art. 278)
+// 10%   : taux intermédiaire (art. 278 bis) — restauration, travaux, transport
+// 5.5%  : taux réduit     (art. 278-0 bis) — alimentation, livres, spectacles
+// 2.1%  : taux particulier (art. 281 nonies) — médicaments remboursables, presse
+// 0%    : exonéré         (art. 261 à 261 E) — exports, formations agréées, médical
+const TAUX_TVA = [
+  { value: 20,  label: '20 % – Taux normal' },
+  { value: 10,  label: '10 % – Taux intermédiaire' },
+  { value: 5.5, label: '5,5 % – Taux réduit' },
+  { value: 2.1, label: '2,1 % – Taux particulier' },
+  { value: 0,   label: '0 % – Exonéré' },
 ]
 
+// Classe 7 – Produits (comptes PCG)
+const CATEGORIES_REVENUS = [
+  '706 \u2013 Prestations de services',
+  '701 \u2013 Ventes de produits finis',
+  '707 \u2013 Ventes de marchandises',
+  '708 \u2013 Produits des activités annexes',
+  '74 \u2013 Subventions d\u2019exploitation',
+  '75 \u2013 Autres produits de gestion courante',
+  '76 \u2013 Produits financiers',
+  '77 \u2013 Produits exceptionnels',
+]
+
+// Classe 6 – Charges (comptes PCG)
 const CATEGORIES_CHARGES = [
-  'Loyer & charges locatives',
-  'Matériel & équipement',
-  'Logiciels & abonnements',
-  'Déplacements & transport',
-  'Repas & réception',
-  'Frais bancaires',
-  'Sous-traitance',
-  'Salaires & charges sociales',
-  'Assurances',
-  'Fournitures de bureau',
-  'Autre charge',
+  '604 \u2013 Achats de prestations de services',
+  '606 \u2013 Fournitures et petits équipements',
+  '607 \u2013 Achats de marchandises',
+  '611 \u2013 Sous-traitance générale',
+  '613 \u2013 Locations & charges locatives',
+  '615 \u2013 Entretien et réparations',
+  '616 \u2013 Primes d\u2019assurance',
+  '622 \u2013 Honoraires et rémunérations d\u2019intermédiaires',
+  '623 \u2013 Publicité & communication',
+  '624 \u2013 Transports de biens',
+  '625 \u2013 Déplacements, missions & réceptions',
+  '626 \u2013 Frais postaux & télécommunications',
+  '627 \u2013 Services bancaires & assimilés',
+  '641 \u2013 Rémunérations du personnel',
+  '645 \u2013 Charges sociales & cotisations',
+  '681 \u2013 Dotations aux amortissements d\u2019exploitation',
+  '661 \u2013 Charges d\u2019intérêts',
+  '668 \u2013 Autres charges financières',
+  '671 \u2013 Charges exceptionnelles sur opérations de gestion',
+  '675 \u2013 Valeurs comptables des éléments cédés',
 ]
 
 const STATUTS = [
@@ -213,7 +239,7 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
             onChange={handleChange}
           >
             {TAUX_TVA.map(t => (
-              <option key={t} value={t}>{t}%</option>
+              <option key={t.value} value={t.value}>{t.label}</option>
             ))}
           </select>
         </div>

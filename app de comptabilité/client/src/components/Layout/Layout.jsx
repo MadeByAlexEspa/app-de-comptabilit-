@@ -3,8 +3,7 @@ import styles from './Layout.module.css'
 
 const navItems = [
   { to: '/', label: 'Tableau de bord', icon: '🏠', end: true },
-  { to: '/factures', label: 'Factures', icon: '📄' },
-  { to: '/depenses', label: 'Dépenses', icon: '💸' },
+  { to: '/transactions', label: 'Transactions', icon: '💳' },
   { to: '/tva', label: 'TVA', icon: '📊' },
   { to: '/pnl', label: 'P&L', icon: '📈' },
   { to: '/bilan', label: 'Bilan', icon: '⚖️' },

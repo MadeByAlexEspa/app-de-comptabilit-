@@ -1,8 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout/Layout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
-import Factures from './pages/Factures.jsx'
-import Depenses from './pages/Depenses.jsx'
+import Transactions from './pages/Transactions.jsx'
 import TVA from './pages/TVA.jsx'
 import PnL from './pages/PnL.jsx'
 import Bilan from './pages/Bilan.jsx'
@@ -12,8 +11,9 @@ export default function App() {
     <Layout>
       <Routes>
         <Route path="/" element={<Dashboard />} />
-        <Route path="/factures" element={<Factures />} />
-        <Route path="/depenses" element={<Depenses />} />
+        <Route path="/transactions" element={<Transactions />} />
+        <Route path="/factures" element={<Navigate to="/transactions" replace />} />
+        <Route path="/depenses" element={<Navigate to="/transactions" replace />} />
         <Route path="/tva" element={<TVA />} />
         <Route path="/pnl" element={<PnL />} />
         <Route path="/bilan" element={<Bilan />} />

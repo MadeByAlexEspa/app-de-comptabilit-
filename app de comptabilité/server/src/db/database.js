@@ -103,6 +103,37 @@ db.exec(`
   );
 `);
 
+// ── Migration PCG : mise à jour des catégories existantes vers les comptes PCG ─
+// Factures
+const MIGRATION_FACTURES = [
+  ["Prestations de services", "706 \u2013 Prestations de services"],
+  ["Conseil",                 "706 \u2013 Prestations de services"],
+  ["Formation",               "706 \u2013 Prestations de services"],
+  ["Vente de produits",       "701 \u2013 Ventes de produits finis"],
+  ["Autre recette",           "75 \u2013 Autres produits de gestion courante"],
+];
+for (const [ancien, nouveau] of MIGRATION_FACTURES) {
+  db.run(`UPDATE factures SET categorie = ? WHERE categorie = ?`, [nouveau, ancien]);
+}
+
+// Dépenses
+const MIGRATION_DEPENSES = [
+  ["Loyer & charges locatives",  "613 \u2013 Locations & charges locatives"],
+  ["Matériel & équipement",      "606 \u2013 Fournitures et petits équipements"],
+  ["Logiciels & abonnements",    "606 \u2013 Fournitures et petits équipements"],
+  ["Déplacements & transport",   "625 \u2013 Déplacements, missions & réceptions"],
+  ["Repas & réception",          "625 \u2013 Déplacements, missions & réceptions"],
+  ["Frais bancaires",            "627 \u2013 Services bancaires & assimilés"],
+  ["Sous-traitance",             "611 \u2013 Sous-traitance générale"],
+  ["Salaires & charges sociales","641 \u2013 Rémunérations du personnel"],
+  ["Assurances",                 "616 \u2013 Primes d'assurance"],
+  ["Fournitures de bureau",      "606 \u2013 Fournitures et petits équipements"],
+  ["Autre charge",               "671 \u2013 Charges exceptionnelles sur opérations de gestion"],
+];
+for (const [ancien, nouveau] of MIGRATION_DEPENSES) {
+  db.run(`UPDATE depenses SET categorie = ? WHERE categorie = ?`, [nouveau, ancien]);
+}
+
 // ── Seed data ─────────────────────────────────────────────────────────────────
 // Only insert seed data when the tables are empty to avoid duplicates on restart
 
@@ -126,7 +157,7 @@ if (factureCount.cnt === 0) {
       montant_ht: 4500.00,
       taux_tva: 20,
       statut: 'payee',
-      categorie: 'Prestations de services',
+      categorie: '706 \u2013 Prestations de services',
     },
     {
       numero: 'F-2026-002',
@@ -136,7 +167,7 @@ if (factureCount.cnt === 0) {
       montant_ht: 2800.00,
       taux_tva: 20,
       statut: 'payee',
-      categorie: 'Conseil',
+      categorie: '706 \u2013 Prestations de services',
     },
     {
       numero: 'F-2026-003',
@@ -146,7 +177,7 @@ if (factureCount.cnt === 0) {
       montant_ht: 1600.00,
       taux_tva: 0,
       statut: 'payee',
-      categorie: 'Formation',
+      categorie: '706 \u2013 Prestations de services',
     },
     {
       numero: 'F-2026-004',
@@ -156,7 +187,7 @@ if (factureCount.cnt === 0) {
       montant_ht: 3200.00,
       taux_tva: 20,
       statut: 'payee',
-      categorie: 'Conseil',
+      categorie: '706 \u2013 Prestations de services',
     },
     {
       numero: 'F-2026-005',
@@ -166,7 +197,7 @@ if (factureCount.cnt === 0) {
       montant_ht: 5000.00,
       taux_tva: 20,
       statut: 'en_attente',
-      categorie: 'Prestations de services',
+      categorie: '706 \u2013 Prestations de services',
     },
   ];
 
@@ -195,7 +226,7 @@ if (depenseCount.cnt === 0) {
       montant_ht: 750.00,
       taux_tva: 20,
       statut: 'payee',
-      categorie: 'Loyer & charges locatives',
+      categorie: '613 \u2013 Locations & charges locatives',
     },
     {
       date: '2026-01-20',
@@ -204,7 +235,7 @@ if (depenseCount.cnt === 0) {
       montant_ht: 2074.17,
       taux_tva: 20,
       statut: 'payee',
-      categorie: 'Matériel & équipement',
+      categorie: '606 \u2013 Fournitures et petits équipements',
     },
     {
       date: '2026-02-05',
@@ -213,7 +244,7 @@ if (depenseCount.cnt === 0) {
       montant_ht: 750.00,
       taux_tva: 20,
       statut: 'payee',
-      categorie: 'Loyer & charges locatives',
+      categorie: '613 \u2013 Locations & charges locatives',
     },
     {
       date: '2026-02-14',
@@ -222,7 +253,7 @@ if (depenseCount.cnt === 0) {
       montant_ht: 68.33,
       taux_tva: 10,
       statut: 'payee',
-      categorie: 'Déplacements & transport',
+      categorie: '625 \u2013 Déplacements, missions & réceptions',
     },
     {
       date: '2026-03-05',
@@ -231,7 +262,7 @@ if (depenseCount.cnt === 0) {
       montant_ht: 750.00,
       taux_tva: 20,
       statut: 'en_attente',
-      categorie: 'Loyer & charges locatives',
+      categorie: '613 \u2013 Locations & charges locatives',
     },
   ];
 

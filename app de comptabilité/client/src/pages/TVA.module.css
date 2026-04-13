@@ -177,10 +177,79 @@
 
 .right { text-align: right; }
 
+/* Ventilation par taux grid */
+.ventilationGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+@media (max-width: 800px) {
+  .ventilationGrid { grid-template-columns: 1fr; }
+}
+
+.ventilationCard {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.ventilationCard .sectionTitle {
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.sectionNote {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.tauxTable {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.tauxTable th {
+  padding: 9px 16px;
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  background: #f9fafb;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.tauxTable td {
+  padding: 10px 16px;
+  color: #374151;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.ventilationTotal {
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #6b7280;
+  background: #f9fafb;
+  border-top: 1px solid #e5e7eb;
+}
+
 .empty {
   font-size: 14px;
   color: #9ca3af;
-  padding: 20px 0;
+  padding: 20px 16px;
 }
 
 /* States */
