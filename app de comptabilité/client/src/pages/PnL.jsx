@@ -7,8 +7,9 @@ function currentYear() {
   return { debut: `${y}-01-01`, fin: new Date().toISOString().slice(0, 10) }
 }
 
-function SectionRows({ par_categorie }) {
-  const entries = Object.entries(par_categorie)
+// Affiche les lignes d'un bucket { par_categorie, total }
+function BucketRows({ bucket }) {
+  const entries = Object.entries(bucket.par_categorie)
   if (entries.length === 0) return null
   return entries.map(([cat, montant]) => (
     <tr key={cat}>
@@ -16,6 +17,33 @@ function SectionRows({ par_categorie }) {
       <td className={styles.right}>{formatEur(montant)}</td>
     </tr>
   ))
+}
+
+function SubtotalRow({ label, total, isCharge }) {
+  return (
+    <tr className={styles.subtotal}>
+      <td>{label}</td>
+      <td className={`${styles.right} ${isCharge ? styles.chargeValue : ''}`}>
+        {formatEur(total)}
+      </td>
+    </tr>
+  )
+}
+
+function SigRow({ label, montant, note }) {
+  return (
+    <tr className={styles.sigRow}>
+      <td>
+        <strong>{label}</strong>
+        {note && <span className={styles.sigNote}> {note}</span>}
+      </td>
+      <td className={styles.right}>
+        <strong className={montant >= 0 ? styles.positif : styles.negatif}>
+          {formatEur(montant)}
+        </strong>
+      </td>
+    </tr>
+  )
 }
 
 function ResultatRow({ label, montant, className }) {
@@ -31,13 +59,17 @@ function ResultatRow({ label, montant, className }) {
   )
 }
 
+function Spacer() {
+  return <tr className={styles.spacer}><td colSpan={2} /></tr>
+}
+
 export default function PnL() {
   const { debut: defaultDebut, fin: defaultFin } = currentYear()
-  const [debut, setDebut] = useState(defaultDebut)
-  const [fin, setFin] = useState(defaultFin)
-  const [data, setData] = useState(null)
+  const [debut, setDebut]   = useState(defaultDebut)
+  const [fin, setFin]       = useState(defaultFin)
+  const [data, setData]     = useState(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error, setError]   = useState(null)
 
   useEffect(() => {
     if (!debut || !fin) return
@@ -48,12 +80,17 @@ export default function PnL() {
       .catch(e => { setError(e.message); setLoading(false) })
   }, [debut, fin])
 
+  const isEmpty = data && data.ca.total === 0 && data.total_charges_expl === 0
+    && data.produits_financiers.total === 0 && data.produits_exceptionnels.total === 0
+
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>Compte de résultat (P&amp;L)</h1>
-          <p className={styles.pageSubtitle}>Conforme PCG — règlement ANC n°2014-03, art. 823-1</p>
+          <p className={styles.pageSubtitle}>
+            Soldes intermédiaires de gestion — PCG règlement ANC n°2014-03, art. 823-1
+          </p>
         </div>
         <div className={styles.periodPicker}>
           <div className={styles.pickerGroup}>
@@ -68,15 +105,11 @@ export default function PnL() {
       </div>
 
       {loading && (
-        <div className={styles.loading}>
-          <div className={styles.spinner} />
-          <p>Calcul du P&amp;L…</p>
-        </div>
+        <div className={styles.loading}><div className={styles.spinner} /><p>Calcul…</p></div>
       )}
-
       {error && <div className={styles.error}>⚠️ {error}</div>}
 
-      {data && !loading && (
+      {data && !loading && !isEmpty && (
         <div className={styles.tableCard}>
           <table className={styles.table}>
             <thead>
@@ -87,113 +120,216 @@ export default function PnL() {
             </thead>
             <tbody>
 
-              {/* ── PRODUITS D'EXPLOITATION ─────────────────────────────── */}
+              {/* ══════════════════════════════════════════════════════════
+                  PRODUITS D'EXPLOITATION
+              ══════════════════════════════════════════════════════════ */}
               <tr className={styles.sectionHeader}>
-                <td colSpan={2}>PRODUITS D'EXPLOITATION (Classe 7)</td>
+                <td colSpan={2}>I – PRODUITS D'EXPLOITATION</td>
               </tr>
-              <SectionRows par_categorie={data.produits.exploitation.par_categorie} />
+
+              {/* Chiffre d'affaires */}
+              {data.ca.total > 0 && (
+                <>
+                  <tr className={styles.subSectionHeader}>
+                    <td colSpan={2}>Chiffre d'affaires</td>
+                  </tr>
+                  <BucketRows bucket={data.ca} />
+                  <SubtotalRow label="Total chiffre d'affaires" total={data.ca.total} />
+                </>
+              )}
+
+              {/* Autres produits d'exploitation */}
+              {data.autres_produits_expl.total > 0 && (
+                <>
+                  <tr className={styles.subSectionHeader}>
+                    <td colSpan={2}>Autres produits d'exploitation</td>
+                  </tr>
+                  <BucketRows bucket={data.autres_produits_expl} />
+                  <SubtotalRow label="Total autres produits" total={data.autres_produits_expl.total} />
+                </>
+              )}
+
               <tr className={styles.subtotal}>
-                <td>Total produits d'exploitation</td>
-                <td className={styles.right}>{formatEur(data.produits.exploitation.total)}</td>
+                <td><strong>Total produits d'exploitation</strong></td>
+                <td className={styles.right}><strong>{formatEur(data.total_produits_expl)}</strong></td>
               </tr>
 
-              <tr className={styles.spacer}><td colSpan={2} /></tr>
+              <Spacer />
 
-              {/* ── CHARGES D'EXPLOITATION ──────────────────────────────── */}
+              {/* ══════════════════════════════════════════════════════════
+                  CHARGES D'EXPLOITATION
+              ══════════════════════════════════════════════════════════ */}
               <tr className={styles.sectionHeader}>
-                <td colSpan={2}>CHARGES D'EXPLOITATION (Classe 6)</td>
-              </tr>
-              <SectionRows par_categorie={data.charges.exploitation.par_categorie} />
-              <tr className={styles.subtotal}>
-                <td>Total charges d'exploitation</td>
-                <td className={`${styles.right} ${styles.chargeValue}`}>{formatEur(data.charges.exploitation.total)}</td>
+                <td colSpan={2}>II – CHARGES D'EXPLOITATION</td>
               </tr>
 
-              <tr className={styles.spacer}><td colSpan={2} /></tr>
+              {/* Achats consommés */}
+              {data.achats.total > 0 && (
+                <>
+                  <tr className={styles.subSectionHeader}>
+                    <td colSpan={2}>Achats consommés</td>
+                  </tr>
+                  <BucketRows bucket={data.achats} />
+                  <SubtotalRow label="Total achats consommés" total={data.achats.total} isCharge />
+                </>
+              )}
+
+              {/* Charges externes */}
+              {data.charges_externes.total > 0 && (
+                <>
+                  <tr className={styles.subSectionHeader}>
+                    <td colSpan={2}>Charges externes</td>
+                  </tr>
+                  <BucketRows bucket={data.charges_externes} />
+                  <SubtotalRow label="Total charges externes" total={data.charges_externes.total} isCharge />
+                </>
+              )}
+
+              {/* SIG : Valeur ajoutée */}
+              <SigRow
+                label="= VALEUR AJOUTÉE"
+                montant={data.valeur_ajoutee}
+                note="(CA + autres produits – achats – charges ext.)"
+              />
+
+              {/* Impôts et taxes */}
+              {data.impots_taxes.total > 0 && (
+                <>
+                  <tr className={styles.subSectionHeader}>
+                    <td colSpan={2}>Impôts, taxes et versements assimilés</td>
+                  </tr>
+                  <BucketRows bucket={data.impots_taxes} />
+                  <SubtotalRow label="Total impôts et taxes" total={data.impots_taxes.total} isCharge />
+                </>
+              )}
+
+              {/* Charges de personnel */}
+              {data.charges_personnel.total > 0 && (
+                <>
+                  <tr className={styles.subSectionHeader}>
+                    <td colSpan={2}>Charges de personnel</td>
+                  </tr>
+                  <BucketRows bucket={data.charges_personnel} />
+                  <SubtotalRow label="Total charges de personnel" total={data.charges_personnel.total} isCharge />
+                </>
+              )}
+
+              {/* SIG : EBE */}
+              <SigRow
+                label="= EXCÉDENT BRUT D'EXPLOITATION (EBE)"
+                montant={data.ebe}
+                note="(VA – impôts taxes – charges personnel)"
+              />
+
+              {/* Dotations aux amortissements */}
+              {data.dotations.total > 0 && (
+                <>
+                  <tr className={styles.subSectionHeader}>
+                    <td colSpan={2}>Dotations aux amortissements</td>
+                  </tr>
+                  <BucketRows bucket={data.dotations} />
+                  <SubtotalRow label="Total dotations" total={data.dotations.total} isCharge />
+                </>
+              )}
+
+              <tr className={styles.subtotal}>
+                <td><strong>Total charges d'exploitation</strong></td>
+                <td className={`${styles.right} ${styles.chargeValue}`}>
+                  <strong>{formatEur(data.total_charges_expl)}</strong>
+                </td>
+              </tr>
+
+              <Spacer />
+
+              {/* SIG : Résultat d'exploitation */}
               <ResultatRow
-                label="RÉSULTAT D'EXPLOITATION"
+                label="III – RÉSULTAT D'EXPLOITATION"
                 montant={data.resultat_exploitation}
                 className={styles.resultatSection}
               />
 
-              {/* ── RÉSULTAT FINANCIER ──────────────────────────────────── */}
-              {(data.produits.financier.total !== 0 || data.charges.financier.total !== 0) && (
+              {/* ══════════════════════════════════════════════════════════
+                  RÉSULTAT FINANCIER
+              ══════════════════════════════════════════════════════════ */}
+              {(data.produits_financiers.total !== 0 || data.charges_financieres.total !== 0) && (
                 <>
-                  <tr className={styles.spacer}><td colSpan={2} /></tr>
+                  <Spacer />
                   <tr className={styles.sectionHeader}>
-                    <td colSpan={2}>RÉSULTAT FINANCIER</td>
+                    <td colSpan={2}>IV – RÉSULTAT FINANCIER</td>
                   </tr>
-                  {data.produits.financier.total !== 0 && (
+                  {data.produits_financiers.total > 0 && (
                     <>
-                      <SectionRows par_categorie={data.produits.financier.par_categorie} />
-                      <tr className={styles.subtotal}>
-                        <td>Total produits financiers</td>
-                        <td className={styles.right}>{formatEur(data.produits.financier.total)}</td>
-                      </tr>
+                      <BucketRows bucket={data.produits_financiers} />
+                      <SubtotalRow label="Total produits financiers" total={data.produits_financiers.total} />
                     </>
                   )}
-                  {data.charges.financier.total !== 0 && (
+                  {data.charges_financieres.total > 0 && (
                     <>
-                      <SectionRows par_categorie={data.charges.financier.par_categorie} />
-                      <tr className={styles.subtotal}>
-                        <td>Total charges financières</td>
-                        <td className={`${styles.right} ${styles.chargeValue}`}>{formatEur(data.charges.financier.total)}</td>
-                      </tr>
+                      <BucketRows bucket={data.charges_financieres} />
+                      <SubtotalRow label="Total charges financières" total={data.charges_financieres.total} isCharge />
                     </>
                   )}
                   <ResultatRow
-                    label="RÉSULTAT FINANCIER"
+                    label="= Résultat financier"
                     montant={data.resultat_financier}
                     className={styles.resultatSection}
                   />
                 </>
               )}
 
-              {/* ── RÉSULTAT COURANT ────────────────────────────────────── */}
-              <tr className={styles.spacer}><td colSpan={2} /></tr>
+              {/* SIG : Résultat courant */}
+              <Spacer />
               <ResultatRow
-                label="RÉSULTAT COURANT AVANT IMPÔT"
+                label="V – RÉSULTAT COURANT AVANT IMPÔT"
                 montant={data.resultat_courant}
                 className={styles.resultatCourant}
               />
 
-              {/* ── RÉSULTAT EXCEPTIONNEL ───────────────────────────────── */}
-              {(data.produits.exceptionnel.total !== 0 || data.charges.exceptionnel.total !== 0) && (
+              {/* ══════════════════════════════════════════════════════════
+                  RÉSULTAT EXCEPTIONNEL
+              ══════════════════════════════════════════════════════════ */}
+              {(data.produits_exceptionnels.total !== 0 || data.charges_exceptionnelles.total !== 0) && (
                 <>
-                  <tr className={styles.spacer}><td colSpan={2} /></tr>
+                  <Spacer />
                   <tr className={styles.sectionHeader}>
-                    <td colSpan={2}>RÉSULTAT EXCEPTIONNEL</td>
+                    <td colSpan={2}>VI – RÉSULTAT EXCEPTIONNEL</td>
                   </tr>
-                  {data.produits.exceptionnel.total !== 0 && (
+                  {data.produits_exceptionnels.total > 0 && (
                     <>
-                      <SectionRows par_categorie={data.produits.exceptionnel.par_categorie} />
-                      <tr className={styles.subtotal}>
-                        <td>Total produits exceptionnels</td>
-                        <td className={styles.right}>{formatEur(data.produits.exceptionnel.total)}</td>
-                      </tr>
+                      <BucketRows bucket={data.produits_exceptionnels} />
+                      <SubtotalRow label="Total produits exceptionnels" total={data.produits_exceptionnels.total} />
                     </>
                   )}
-                  {data.charges.exceptionnel.total !== 0 && (
+                  {data.charges_exceptionnelles.total > 0 && (
                     <>
-                      <SectionRows par_categorie={data.charges.exceptionnel.par_categorie} />
-                      <tr className={styles.subtotal}>
-                        <td>Total charges exceptionnelles</td>
-                        <td className={`${styles.right} ${styles.chargeValue}`}>{formatEur(data.charges.exceptionnel.total)}</td>
-                      </tr>
+                      <BucketRows bucket={data.charges_exceptionnelles} />
+                      <SubtotalRow label="Total charges exceptionnelles" total={data.charges_exceptionnelles.total} isCharge />
                     </>
                   )}
                   <ResultatRow
-                    label="RÉSULTAT EXCEPTIONNEL"
+                    label="= Résultat exceptionnel"
                     montant={data.resultat_exceptionnel}
                     className={styles.resultatSection}
                   />
                 </>
               )}
 
-              {/* ── RÉSULTAT NET ────────────────────────────────────────── */}
-              <tr className={styles.spacer}><td colSpan={2} /></tr>
+              {/* Impôt sur les bénéfices */}
+              {data.impot_societes.total > 0 && (
+                <>
+                  <Spacer />
+                  <tr className={styles.sectionHeader}>
+                    <td colSpan={2}>VII – IMPÔT SUR LES BÉNÉFICES</td>
+                  </tr>
+                  <BucketRows bucket={data.impot_societes} />
+                  <SubtotalRow label="Total IS" total={data.impot_societes.total} isCharge />
+                </>
+              )}
+
+              {/* Résultat net */}
+              <Spacer />
               <tr className={`${styles.resultatNet} ${data.resultat_net >= 0 ? styles.resultatPositif : styles.resultatNegatif}`}>
-                <td><strong>RÉSULTAT NET (avant IS)</strong></td>
+                <td><strong>RÉSULTAT NET DE L'EXERCICE</strong></td>
                 <td className={styles.right}>
                   <strong>{formatEur(data.resultat_net)}</strong>
                 </td>
@@ -203,17 +339,19 @@ export default function PnL() {
           </table>
 
           <div className={styles.footer}>
-            <span className={styles.footerLabel}>Période :</span>
-            {new Date(debut).toLocaleDateString('fr-FR')} → {new Date(fin).toLocaleDateString('fr-FR')}
+            <span>
+              <span className={styles.footerLabel}>Période :</span>
+              {new Date(debut).toLocaleDateString('fr-FR')} → {new Date(fin).toLocaleDateString('fr-FR')}
+            </span>
             <span className={styles.footerNote}>
-              IS non inclus — calculé en fin d'exercice selon le régime fiscal
+              Les mouvements de capitaux (Cl. 1) et immobilisations (Cl. 2) n'apparaissent pas dans le P&L — ils figurent au Bilan.
             </span>
           </div>
         </div>
       )}
 
-      {data && !loading && data.produits.total === 0 && data.charges.total === 0 && (
-        <p className={styles.empty}>Aucune donnée sur cette période.</p>
+      {data && !loading && isEmpty && (
+        <p className={styles.empty}>Aucune donnée P&L sur cette période. Les entrées de capital, emprunts et immobilisations sont au Bilan.</p>
       )}
     </div>
   )

@@ -136,6 +136,71 @@
   font-family: monospace;
 }
 
+.rowLabel {
+  display: flex;
+  align-items: center;
+}
+
+/* Sub-group headers (within a group) */
+.subGroupHeader td {
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 5px 20px 5px 32px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Indented sub-rows (category detail) */
+.subRow td {
+  padding: 8px 20px 8px 44px;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+.subLabel {
+  padding-left: 44px !important;
+  font-size: 13px;
+  color: #6b7280;
+}
+
+/* Sub-total within a group */
+.subTotal td {
+  background: #f8fafc;
+  padding: 8px 20px;
+  font-size: 13px;
+  color: #374151;
+  border-top: 1px solid #e5e7eb;
+  font-style: italic;
+}
+
+/* Group total */
+.groupTotal td {
+  background: #f3f4f6;
+  padding: 10px 20px;
+  font-weight: 600;
+  color: #111827;
+  border-top: 1px solid #d1d5db;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+/* Résultat de l'exercice row */
+.rowResultat td {
+  font-weight: 600;
+}
+
+.resultatPos td {
+  background: #f0fdf4;
+  color: #065f46;
+}
+
+.resultatNeg td {
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
 .highlight td {
   background: #f0fdf4;
   color: #065f46;

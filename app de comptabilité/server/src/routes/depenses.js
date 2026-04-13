@@ -3,7 +3,7 @@ const db = require('../db/database');
 
 const router = Router();
 
-const VALID_TAUX_TVA = [0, 5.5, 10, 20];
+const VALID_TAUX_TVA = [0, 2.1, 5.5, 10, 20];
 const VALID_STATUTS  = ['payee', 'en_attente'];
 
 function round2(n) {
