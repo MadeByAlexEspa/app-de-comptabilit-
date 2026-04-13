@@ -31,6 +31,15 @@ export const api = {
   getPnL: (debut, fin) => request(`/pnl?debut=${debut}&fin=${fin}`),
   getBilan: (date) => request(`/bilan?date=${date}`),
   getDashboard: () => request('/dashboard'),
+
+  // Qonto
+  getQontoConfig:    ()       => request('/qonto/config'),
+  saveQontoConfig:   (data)   => request('/qonto/config',   { method: 'POST', body: data }),
+  getQontoAccounts:  ()       => request('/qonto/accounts'),
+  getQontoMappings:  ()       => request('/qonto/mappings'),
+  saveQontoMappings: (data)   => request('/qonto/mappings', { method: 'PUT',  body: data }),
+  runQontoSync:      ()       => request('/qonto/sync',     { method: 'POST' }),
+  getQontoSyncLog:   ()       => request('/qonto/sync/log'),
 }
 
 export function formatEur(amount) {

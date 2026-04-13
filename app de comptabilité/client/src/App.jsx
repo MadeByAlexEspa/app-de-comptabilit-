@@ -5,6 +5,7 @@ import Transactions from './pages/Transactions.jsx'
 import TVA from './pages/TVA.jsx'
 import PnL from './pages/PnL.jsx'
 import Bilan from './pages/Bilan.jsx'
+import Qonto from './pages/Qonto.jsx'
 
 export default function App() {
   return (
@@ -17,6 +18,7 @@ export default function App() {
         <Route path="/tva" element={<TVA />} />
         <Route path="/pnl" element={<PnL />} />
         <Route path="/bilan" element={<Bilan />} />
+        <Route path="/qonto" element={<Qonto />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

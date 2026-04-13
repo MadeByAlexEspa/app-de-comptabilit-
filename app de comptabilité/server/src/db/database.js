@@ -103,6 +103,45 @@ db.exec(`
   );
 `);
 
+// ── Schéma Qonto ─────────────────────────────────────────────────────────────
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS qonto_config (
+    id                  INTEGER PRIMARY KEY CHECK (id = 1),
+    organization_slug   TEXT,
+    secret_key          TEXT,
+    iban                TEXT,
+    auto_sync_enabled   INTEGER NOT NULL DEFAULT 0,
+    last_sync_at        TEXT
+  );
+
+  CREATE TABLE IF NOT EXISTS qonto_category_mapping (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    qonto_operation_type  TEXT NOT NULL,
+    side                  TEXT NOT NULL CHECK (side IN ('credit','debit')),
+    pcg_category          TEXT NOT NULL,
+    default_taux_tva      REAL NOT NULL DEFAULT 20,
+    UNIQUE (qonto_operation_type, side)
+  );
+
+  CREATE TABLE IF NOT EXISTS qonto_imports (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    qonto_transaction_id  TEXT NOT NULL UNIQUE,
+    local_type            TEXT NOT NULL CHECK (local_type IN ('facture','depense')),
+    local_id              INTEGER NOT NULL,
+    imported_at           TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS qonto_sync_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    synced_at   TEXT NOT NULL,
+    fetched     INTEGER NOT NULL DEFAULT 0,
+    imported    INTEGER NOT NULL DEFAULT 0,
+    skipped     INTEGER NOT NULL DEFAULT 0,
+    errors      TEXT
+  );
+`);
+
 // ── Migration PCG : mise à jour des catégories existantes vers les comptes PCG ─
 // Factures
 const MIGRATION_FACTURES = [
