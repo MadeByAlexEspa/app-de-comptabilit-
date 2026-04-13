@@ -20,11 +20,18 @@ function normaliseParams(params) {
 }
 
 // Wrap a raw Statement so callers don't need to care about the prefix rule.
+// Accepts either a single value/object/array, or multiple positional arguments
+// which are forwarded as a flat array.
 function wrapStmt(stmt) {
+  function norm(...args) {
+    // Multiple spread args → positional array
+    if (args.length > 1) return args;
+    return normaliseParams(args[0]);
+  }
   return {
-    run(params) { return stmt.run(normaliseParams(params)); },
-    get(params) { return stmt.get(normaliseParams(params)); },
-    all(params) { return stmt.all(normaliseParams(params)); },
+    run(...args) { return stmt.run(norm(...args)); },
+    get(...args) { return stmt.get(norm(...args)); },
+    all(...args) { return stmt.all(norm(...args)); },
   };
 }
 
@@ -172,6 +179,11 @@ const MIGRATION_DEPENSES = [
 for (const [ancien, nouveau] of MIGRATION_DEPENSES) {
   db.run(`UPDATE depenses SET categorie = ? WHERE categorie = ?`, [nouveau, ancien]);
 }
+
+// ── Migration : normalise le séparateur de catégorie (tiret ASCII → tiret demi-cadratin) ──
+// Les anciennes versions de l'app enregistraient " - " ; les services P&L/Bilan utilisent " – "
+db.run("UPDATE factures SET categorie = REPLACE(categorie, ' - ', ' \u2013 ') WHERE categorie LIKE '% - %'");
+db.run("UPDATE depenses SET categorie = REPLACE(categorie, ' - ', ' \u2013 ') WHERE categorie LIKE '% - %'");
 
 // ── Seed data ─────────────────────────────────────────────────────────────────
 // Only insert seed data when the tables are empty to avoid duplicates on restart
