@@ -40,6 +40,7 @@ export const api = {
   saveQontoMappings: (data)   => request('/qonto/mappings', { method: 'PUT',  body: data }),
   runQontoSync:      ()       => request('/qonto/sync',     { method: 'POST' }),
   getQontoSyncLog:   ()       => request('/qonto/sync/log'),
+  resetQontoData:    ()       => request('/qonto/reset',    { method: 'POST' }),
 }
 
 export function formatEur(amount) {

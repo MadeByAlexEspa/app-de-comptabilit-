@@ -138,4 +138,18 @@ router.get('/sync/log', (req, res, next) => {
   } catch (e) { next(e); }
 });
 
+// ── POST /api/qonto/reset ─────────────────────────────────────────────────────
+// Wipes all imported transactions and resets the sync cursor so a fresh
+// Qonto sync will re-fetch everything from the beginning.
+router.post('/reset', (req, res, next) => {
+  try {
+    db.run('DELETE FROM qonto_imports');
+    db.run('DELETE FROM qonto_sync_log');
+    db.run('DELETE FROM factures');
+    db.run('DELETE FROM depenses');
+    db.run('UPDATE qonto_config SET last_sync_at = NULL WHERE id = 1');
+    res.json({ ok: true, message: 'Toutes les transactions ont été supprimées. Le prochain sync Qonto récupérera tout depuis le début.' });
+  } catch (e) { next(e); }
+});
+
 module.exports = router;

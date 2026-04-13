@@ -118,6 +118,144 @@
   color: #374151;
 }
 
+.badgeRed {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ── Table info bar ────────────────────────────────────────────────────────── */
+
+.tableInfo {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.tableCount {
+  font-size: 13px;
+  color: #9ca3af;
+}
+
+/* ── Pagination ────────────────────────────────────────────────────────────── */
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding-top: 8px;
+}
+
+.pageBtn {
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  font-family: inherit;
+  line-height: 1;
+}
+
+.pageBtn:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.pageBtn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.pageBtnActive {
+  background: #1a56db;
+  border-color: #1a56db;
+  color: #fff;
+  font-weight: 700;
+}
+
+.pageBtnActive:hover {
+  background: #1648c0 !important;
+  border-color: #1648c0 !important;
+}
+
+.pageEllipsis {
+  min-width: 34px;
+  text-align: center;
+  font-size: 13px;
+  color: #9ca3af;
+  line-height: 34px;
+}
+
+/* ── Bulk action bar ───────────────────────────────────────────────────────── */
+
+.bulkBar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px 16px;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  animation: slideIn 0.15s ease;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.bulkCount {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e40af;
+}
+
+.bulkActions {
+  display: flex;
+  gap: 8px;
+}
+
+.btnBulkClear {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1px solid #93c5fd;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #1d4ed8;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.btnBulkClear:hover {
+  background: #dbeafe;
+}
+
+.btnBulkDelete {
+  padding: 7px 14px;
+  background: #e02424;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.btnBulkDelete:hover {
+  background: #c81e1e;
+}
+
 /* ── Loading & error states ────────────────────────────────────────────────── */
 
 .loading {

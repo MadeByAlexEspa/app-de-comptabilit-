@@ -30,6 +30,28 @@
   width: 90px;
 }
 
+.thCheck {
+  width: 40px;
+  text-align: center;
+  padding-left: 12px !important;
+  padding-right: 4px !important;
+}
+
+.tdCheck {
+  text-align: center;
+  padding-left: 12px !important;
+  padding-right: 4px !important;
+}
+
+.checkbox {
+  width: 15px;
+  height: 15px;
+  accent-color: #1a56db;
+  cursor: pointer;
+  display: block;
+  margin: 0 auto;
+}
+
 .sortable {
   cursor: pointer;
 }
@@ -61,6 +83,14 @@
 
 .tr:hover {
   background: #f9fafb;
+}
+
+.trSelected {
+  background: #eff6ff !important;
+}
+
+.trSelected:hover {
+  background: #dbeafe !important;
 }
 
 .td {

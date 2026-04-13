@@ -266,10 +266,13 @@ function MappingTab() {
 // ── Tab: Synchronisation ──────────────────────────────────────────────────────
 
 function SyncTab({ config, onSynced }) {
-  const [syncing, setSyncing]   = useState(false)
-  const [result, setResult]     = useState(null)
-  const [logs, setLogs]         = useState([])
-  const [error, setError]       = useState(null)
+  const [syncing, setSyncing]     = useState(false)
+  const [result, setResult]       = useState(null)
+  const [logs, setLogs]           = useState([])
+  const [error, setError]         = useState(null)
+  const [resetting, setResetting] = useState(false)
+  const [confirmReset, setConfirmReset] = useState(false)
+  const [resetSuccess, setResetSuccess] = useState(null)
 
   const loadLog = useCallback(() => {
     api.getQontoSyncLog()
@@ -280,7 +283,7 @@ function SyncTab({ config, onSynced }) {
   useEffect(() => { loadLog() }, [loadLog])
 
   async function handleSync() {
-    setSyncing(true); setError(null); setResult(null)
+    setSyncing(true); setError(null); setResult(null); setResetSuccess(null)
     try {
       const res = await api.runQontoSync()
       setResult(res)
@@ -290,6 +293,21 @@ function SyncTab({ config, onSynced }) {
       setError(err.message)
     } finally {
       setSyncing(false)
+    }
+  }
+
+  async function handleReset() {
+    setResetting(true); setError(null); setResult(null); setResetSuccess(null)
+    try {
+      await api.resetQontoData()
+      setResetSuccess('Toutes les transactions ont été supprimées. Vous pouvez relancer un sync.')
+      loadLog()
+      onSynced()
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setResetting(false)
+      setConfirmReset(false)
     }
   }
 
@@ -328,7 +346,8 @@ function SyncTab({ config, onSynced }) {
         </div>
       )}
 
-      {error && <div className={styles.error}>⚠️ {error}</div>}
+      {error        && <div className={styles.error}>⚠️ {error}</div>}
+      {resetSuccess && <div className={styles.successMsg}>✓ {resetSuccess}</div>}
 
       {result && (
         <div className={styles.resultBox}>
@@ -355,13 +374,45 @@ function SyncTab({ config, onSynced }) {
         </div>
       )}
 
-      <button
-        className={styles.btnPrimary}
-        onClick={handleSync}
-        disabled={syncing || !isConfigured}
-      >
-        {syncing ? 'Synchronisation en cours…' : '↻ Synchroniser maintenant'}
-      </button>
+      <div className={styles.syncActions}>
+        <button
+          className={styles.btnPrimary}
+          onClick={handleSync}
+          disabled={syncing || resetting || !isConfigured}
+        >
+          {syncing ? 'Synchronisation en cours…' : '↻ Synchroniser maintenant'}
+        </button>
+
+        {!confirmReset ? (
+          <button
+            className={styles.btnReset}
+            onClick={() => setConfirmReset(true)}
+            disabled={syncing || resetting}
+          >
+            🗑️ Réinitialiser les données
+          </button>
+        ) : (
+          <div className={styles.resetConfirm}>
+            <span className={styles.resetConfirmText}>
+              Supprimer toutes les transactions et l'historique sync ?
+            </span>
+            <button
+              className={styles.btnResetConfirm}
+              onClick={handleReset}
+              disabled={resetting}
+            >
+              {resetting ? 'Suppression…' : 'Confirmer'}
+            </button>
+            <button
+              className={styles.btnResetCancel}
+              onClick={() => setConfirmReset(false)}
+              disabled={resetting}
+            >
+              Annuler
+            </button>
+          </div>
+        )}
+      </div>
 
       {logs.length > 0 && (
         <div className={styles.logSection}>

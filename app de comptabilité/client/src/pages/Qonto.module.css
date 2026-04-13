@@ -480,6 +480,101 @@
   max-width: 240px;
 }
 
+/* ── Sync actions row ────────────────────────────────────────────────────── */
+
+.syncActions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.btnReset {
+  padding: 9px 16px;
+  background: transparent;
+  border: 1px solid #fca5a5;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #b91c1c;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+  white-space: nowrap;
+  font-family: inherit;
+}
+
+.btnReset:hover:not(:disabled) {
+  background: #fef2f2;
+  border-color: #f87171;
+}
+
+.btnReset:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.resetConfirm {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 10px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.resetConfirmText {
+  font-size: 13px;
+  color: #b91c1c;
+  font-weight: 500;
+}
+
+.btnResetConfirm {
+  padding: 6px 14px;
+  background: #e02424;
+  border: none;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.btnResetConfirm:hover:not(:disabled) {
+  background: #c81e1e;
+}
+
+.btnResetConfirm:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.btnResetCancel {
+  padding: 6px 14px;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #374151;
+  cursor: pointer;
+  transition: background 0.15s;
+  font-family: inherit;
+}
+
+.btnResetCancel:hover:not(:disabled) {
+  background: #f9fafb;
+}
+
 /* ── Loading ─────────────────────────────────────────────────────────────── */
 
 .loading {

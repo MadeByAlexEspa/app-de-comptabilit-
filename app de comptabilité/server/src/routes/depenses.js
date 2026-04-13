@@ -162,6 +162,8 @@ router.delete('/:id', (req, res, next) => {
     }
 
     db.prepare('DELETE FROM depenses WHERE id = ?').run(req.params.id);
+    // Also remove the Qonto import record so the transaction can be re-imported
+    db.prepare("DELETE FROM qonto_imports WHERE local_type = 'depense' AND local_id = ?").run(req.params.id);
     res.json({ message: 'Dépense supprimée', id: Number(req.params.id) });
   } catch (err) {
     next(err);
