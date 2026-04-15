@@ -1,5 +1,3 @@
-const db = require('../db/database');
-
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
@@ -84,11 +82,7 @@ const CAT_PNL_CHARGES = [
   '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
 ];
 
-function sqlIn(arr) {
-  return arr.map(() => '?').join(',');
-}
-
-function sumCat(table, categories, dateCond, dateParams, extraCond = '') {
+function sumCat(db, table, categories, dateCond, dateParams, extraCond = '') {
   const rows = db
     .prepare(`SELECT categorie, COALESCE(SUM(montant_ht), 0) AS total
               FROM ${table}
@@ -105,7 +99,7 @@ function sumCat(table, categories, dateCond, dateParams, extraCond = '') {
   return { par_categorie, total };
 }
 
-function sumCatSingle(table, categorie, dateCond, dateParams) {
+function sumCatSingle(db, table, categorie, dateCond, dateParams) {
   const row = db
     .prepare(`SELECT COALESCE(SUM(montant_ht), 0) AS total FROM ${table} WHERE categorie = ? AND ${dateCond}`)
     .get(categorie, ...dateParams);
@@ -115,26 +109,18 @@ function sumCatSingle(table, categorie, dateCond, dateParams) {
 /**
  * Bilan complet conforme PCG (règlement ANC n°2014-03, art. 821-1).
  *
- * ACTIF
- *   Immobilisé : immobilisations incorporelles (201,205) + corporelles (211,213,215,218)
- *   Circulant  : créances clients (41), crédit TVA (44567), disponibilités (512)
- *
- * PASSIF
- *   Capitaux propres : capital social (101), compte exploitant net (108), résultat (12)
- *   Dettes financières : emprunts nets (164), C/C associés nets (455)
- *   Dettes d'exploitation : dettes four. (40), TVA à décaisser (44551), découvert (564)
- *
+ * @param {object} db    - workspace DB instance
  * @param {string} date  - date d'arrêté "YYYY-MM-DD"
  * @param {string} debut - début de l'exercice "YYYY-MM-DD" (défaut : 1er janvier de l'année de date)
  */
-function getBilanReport(date, debut) {
+function getBilanReport(db, date, debut) {
   const debutExercice = debut || `${date.slice(0, 4)}-01-01`;
 
   // ── ACTIF IMMOBILISÉ ─────────────────────────────────────────────────────
 
   // Sorties avec catégories immobilisations (cumul depuis l'origine, pas juste l'exercice)
-  const immoIncorp = sumCat('depenses', CAT_IMMO_INCORP, 'date <= ?', [date]);
-  const immoCorpData = sumCat('depenses', CAT_IMMO_CORP, 'date <= ?', [date]);
+  const immoIncorp = sumCat(db, 'depenses', CAT_IMMO_INCORP, 'date <= ?', [date]);
+  const immoCorpData = sumCat(db, 'depenses', CAT_IMMO_CORP, 'date <= ?', [date]);
 
   const totalImmobilise = round2(immoIncorp.total + immoCorpData.total);
 
@@ -177,11 +163,11 @@ function getBilanReport(date, debut) {
   // ── PASSIF – CAPITAUX PROPRES ────────────────────────────────────────────
 
   // Capital social (101) — cumul depuis l'origine
-  const capitalSocial = sumCatSingle('factures', CAT_CAPITAL_SOCIAL, 'date <= ?', [date]);
+  const capitalSocial = sumCatSingle(db, 'factures', CAT_CAPITAL_SOCIAL, 'date <= ?', [date]);
 
   // Compte exploitant net (108 apports entrées - 108 prélèvements sorties)
-  const apportsExpl   = sumCatSingle('factures', CAT_APPORT_EXPL, 'date <= ?', [date]);
-  const prelevExpl    = sumCatSingle('depenses', CAT_PRELEV_EXPL,  'date <= ?', [date]);
+  const apportsExpl   = sumCatSingle(db, 'factures', CAT_APPORT_EXPL, 'date <= ?', [date]);
+  const prelevExpl    = sumCatSingle(db, 'depenses', CAT_PRELEV_EXPL,  'date <= ?', [date]);
   const compteExploitant = round2(apportsExpl - prelevExpl);
 
   // Résultat de l'exercice (uniquement catégories P&L — pas les BS items)
@@ -204,13 +190,13 @@ function getBilanReport(date, debut) {
   // ── PASSIF – DETTES FINANCIÈRES ──────────────────────────────────────────
 
   // Emprunts nets (164 reçus entrées - 164 remboursements sorties)
-  const empruntsRecus   = sumCatSingle('factures', CAT_EMPRUNT_RECU,      'date <= ?', [date]);
-  const empruntsRembours = sumCatSingle('depenses', CAT_EMPRUNT_REMBOURS, 'date <= ?', [date]);
+  const empruntsRecus   = sumCatSingle(db, 'factures', CAT_EMPRUNT_RECU,      'date <= ?', [date]);
+  const empruntsRembours = sumCatSingle(db, 'depenses', CAT_EMPRUNT_REMBOURS, 'date <= ?', [date]);
   const empruntsNet     = round2(Math.max(0, empruntsRecus - empruntsRembours));
 
   // C/C associés nets (455 avances entrées - 455 remboursements sorties)
-  const ccRecus    = sumCatSingle('factures', CAT_CC_ASSOC_RECU,     'date <= ?', [date]);
-  const ccRembours = sumCatSingle('depenses', CAT_CC_ASSOC_REMBOURS, 'date <= ?', [date]);
+  const ccRecus    = sumCatSingle(db, 'factures', CAT_CC_ASSOC_RECU,     'date <= ?', [date]);
+  const ccRembours = sumCatSingle(db, 'depenses', CAT_CC_ASSOC_REMBOURS, 'date <= ?', [date]);
   const ccNet      = round2(Math.max(0, ccRecus - ccRembours));
 
   const totalDettesFinancieres = round2(empruntsNet + ccNet);

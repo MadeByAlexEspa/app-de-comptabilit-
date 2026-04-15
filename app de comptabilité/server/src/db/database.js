@@ -92,7 +92,12 @@ function transaction(fn) {
 
 // ── Schema ────────────────────────────────────────────────────────────────────
 
-db.exec(`
+/**
+ * Apply the full workspace schema to a raw (unwrapped) Database instance.
+ * Called on the main DB at startup, and on any newly created workspace DB.
+ */
+function applySchema(rawDb) {
+  rawDb.run(`
   CREATE TABLE IF NOT EXISTS factures (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     numero       TEXT    NOT NULL,
@@ -106,8 +111,10 @@ db.exec(`
     categorie    TEXT    NOT NULL,
     statut       TEXT    NOT NULL DEFAULT 'en_attente',
     created_at   TEXT    DEFAULT (datetime('now'))
-  );
+  )
+`);
 
+  rawDb.run(`
   CREATE TABLE IF NOT EXISTS depenses (
     id           INTEGER PRIMARY KEY AUTOINCREMENT,
     date         TEXT    NOT NULL,
@@ -120,12 +127,10 @@ db.exec(`
     categorie    TEXT    NOT NULL,
     statut       TEXT    NOT NULL DEFAULT 'en_attente',
     created_at   TEXT    DEFAULT (datetime('now'))
-  );
+  )
 `);
 
-// ── Schéma Qonto ─────────────────────────────────────────────────────────────
-
-db.exec(`
+  rawDb.run(`
   CREATE TABLE IF NOT EXISTS qonto_config (
     id                  INTEGER PRIMARY KEY CHECK (id = 1),
     organization_slug   TEXT,
@@ -133,8 +138,10 @@ db.exec(`
     iban                TEXT,
     auto_sync_enabled   INTEGER NOT NULL DEFAULT 0,
     last_sync_at        TEXT
-  );
+  )
+`);
 
+  rawDb.run(`
   CREATE TABLE IF NOT EXISTS qonto_category_mapping (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
     qonto_operation_type  TEXT NOT NULL,
@@ -142,16 +149,20 @@ db.exec(`
     pcg_category          TEXT NOT NULL,
     default_taux_tva      REAL NOT NULL DEFAULT 20,
     UNIQUE (qonto_operation_type, side)
-  );
+  )
+`);
 
+  rawDb.run(`
   CREATE TABLE IF NOT EXISTS qonto_imports (
     id                    INTEGER PRIMARY KEY AUTOINCREMENT,
     qonto_transaction_id  TEXT NOT NULL UNIQUE,
     local_type            TEXT NOT NULL CHECK (local_type IN ('facture','depense')),
     local_id              INTEGER NOT NULL,
     imported_at           TEXT NOT NULL DEFAULT (datetime('now'))
-  );
+  )
+`);
 
+  rawDb.run(`
   CREATE TABLE IF NOT EXISTS qonto_sync_log (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     synced_at   TEXT NOT NULL,
@@ -159,8 +170,10 @@ db.exec(`
     imported    INTEGER NOT NULL DEFAULT 0,
     skipped     INTEGER NOT NULL DEFAULT 0,
     errors      TEXT
-  );
+  )
+`);
 
+  rawDb.run(`
   CREATE TABLE IF NOT EXISTS qonto_accounts (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     name                TEXT NOT NULL DEFAULT 'Compte Qonto',
@@ -170,13 +183,75 @@ db.exec(`
     auto_sync_enabled   INTEGER NOT NULL DEFAULT 0,
     last_sync_at        TEXT,
     created_at          TEXT DEFAULT (datetime('now'))
-  );
+  )
 `);
 
-// Add account_id to qonto_sync_log (migration — silently ignored if column already exists)
-try { db.run('ALTER TABLE qonto_sync_log ADD COLUMN account_id INTEGER'); } catch (_) {}
+  rawDb.run(`
+  CREATE TABLE IF NOT EXISTS shine_accounts (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                TEXT NOT NULL DEFAULT 'Compte Shine',
+    access_token        TEXT,
+    shine_account_id    TEXT,
+    iban                TEXT,
+    auto_sync_enabled   INTEGER NOT NULL DEFAULT 0,
+    last_sync_at        TEXT,
+    created_at          TEXT DEFAULT (datetime('now'))
+  )
+`);
 
-// Migrate existing single qonto_config → qonto_accounts
+  rawDb.run(`
+  CREATE TABLE IF NOT EXISTS shine_category_mapping (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    shine_operation_type  TEXT NOT NULL,
+    side                  TEXT NOT NULL CHECK (side IN ('credit','debit')),
+    pcg_category          TEXT NOT NULL,
+    default_taux_tva      REAL NOT NULL DEFAULT 20,
+    UNIQUE (shine_operation_type, side)
+  )
+`);
+
+  rawDb.run(`
+  CREATE TABLE IF NOT EXISTS shine_imports (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    shine_transaction_id  TEXT NOT NULL UNIQUE,
+    local_type            TEXT NOT NULL CHECK (local_type IN ('facture','depense')),
+    local_id              INTEGER NOT NULL,
+    imported_at           TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+  rawDb.run(`
+  CREATE TABLE IF NOT EXISTS shine_sync_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id  INTEGER,
+    synced_at   TEXT NOT NULL,
+    fetched     INTEGER NOT NULL DEFAULT 0,
+    imported    INTEGER NOT NULL DEFAULT 0,
+    skipped     INTEGER NOT NULL DEFAULT 0,
+    errors      TEXT
+  )
+`);
+
+  rawDb.run(`
+  CREATE TABLE IF NOT EXISTS ai_config (
+    id             INTEGER PRIMARY KEY CHECK (id = 1),
+    provider       TEXT NOT NULL DEFAULT 'anthropic',
+    api_key        TEXT,
+    model          TEXT DEFAULT 'claude-sonnet-4-6',
+    system_prompt  TEXT,
+    updated_at     TEXT DEFAULT (datetime('now'))
+  )
+`);
+
+  // Migrations (silently ignored if column already exists)
+  try { rawDb.run('ALTER TABLE qonto_sync_log ADD COLUMN account_id INTEGER'); } catch (_) {}
+}
+
+// Apply schema to the main compta.db
+applySchema(_db);
+
+// ── Migrate existing single qonto_config → qonto_accounts ────────────────────
+
 {
   const acctCount = db.get('SELECT COUNT(*) AS cnt FROM qonto_accounts');
   if (acctCount.cnt === 0) {
@@ -189,61 +264,6 @@ try { db.run('ALTER TABLE qonto_sync_log ADD COLUMN account_id INTEGER'); } catc
     }
   }
 }
-
-// ── Schéma Shine ──────────────────────────────────────────────────────────────
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS shine_accounts (
-    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    name                TEXT NOT NULL DEFAULT 'Compte Shine',
-    access_token        TEXT,
-    shine_account_id    TEXT,
-    iban                TEXT,
-    auto_sync_enabled   INTEGER NOT NULL DEFAULT 0,
-    last_sync_at        TEXT,
-    created_at          TEXT DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS shine_category_mapping (
-    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    shine_operation_type  TEXT NOT NULL,
-    side                  TEXT NOT NULL CHECK (side IN ('credit','debit')),
-    pcg_category          TEXT NOT NULL,
-    default_taux_tva      REAL NOT NULL DEFAULT 20,
-    UNIQUE (shine_operation_type, side)
-  );
-
-  CREATE TABLE IF NOT EXISTS shine_imports (
-    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    shine_transaction_id  TEXT NOT NULL UNIQUE,
-    local_type            TEXT NOT NULL CHECK (local_type IN ('facture','depense')),
-    local_id              INTEGER NOT NULL,
-    imported_at           TEXT NOT NULL DEFAULT (datetime('now'))
-  );
-
-  CREATE TABLE IF NOT EXISTS shine_sync_log (
-    id          INTEGER PRIMARY KEY AUTOINCREMENT,
-    account_id  INTEGER,
-    synced_at   TEXT NOT NULL,
-    fetched     INTEGER NOT NULL DEFAULT 0,
-    imported    INTEGER NOT NULL DEFAULT 0,
-    skipped     INTEGER NOT NULL DEFAULT 0,
-    errors      TEXT
-  );
-`);
-
-// ── Schéma IA ─────────────────────────────────────────────────────────────────
-
-db.exec(`
-  CREATE TABLE IF NOT EXISTS ai_config (
-    id             INTEGER PRIMARY KEY CHECK (id = 1),
-    provider       TEXT NOT NULL DEFAULT 'anthropic',
-    api_key        TEXT,
-    model          TEXT DEFAULT 'claude-sonnet-4-6',
-    system_prompt  TEXT,
-    updated_at     TEXT DEFAULT (datetime('now'))
-  );
-`);
 
 // ── Migration PCG : mise à jour des catégories existantes vers les comptes PCG ─
 // Factures
@@ -423,4 +443,52 @@ if (depenseCount.cnt === 0) {
   insertManyDepenses(seedDepenses);
 }
 
+// ── Multi-workspace support ────────────────────────────────────────────────────
+
+// Cache des DB par workspace
+const _workspaceDbs = new Map();
+
+/**
+ * Return the wrapped SQLite DB for a given workspace ID.
+ * Workspace 1 reuses the existing compta.db singleton.
+ * Other workspaces get their own data/{id}.db file, created on first access.
+ */
+function getWorkspaceDb(workspaceId) {
+  const id = Number(workspaceId);
+  if (!Number.isInteger(id) || id < 1) {
+    throw Object.assign(new Error('workspaceId invalide'), { status: 400 });
+  }
+  if (_workspaceDbs.has(id)) return _workspaceDbs.get(id);
+
+  // workspace 1 → compta.db (existing DB)
+  if (id === 1) {
+    _workspaceDbs.set(1, db);
+    return db;
+  }
+
+  // Other workspaces → data/{id}.db (same setup as the main DB)
+  const wPath = path.join(dataDir, `${id}.db`);
+  const wLock = wPath + '.lock';
+  if (fs.existsSync(wLock)) {
+    try { fs.rmSync(wLock, { recursive: true, force: true }); } catch (_) {}
+  }
+
+  const raw = new Database(wPath);
+  raw.run('PRAGMA journal_mode = WAL');
+  raw.run('PRAGMA foreign_keys = ON');
+  applySchema(raw);
+
+  const wrapped = new Proxy(raw, {
+    get(target, prop) {
+      if (prop === 'prepare') return (sql) => wrapStmt(target.prepare(sql));
+      const val = target[prop];
+      return typeof val === 'function' ? val.bind(target) : val;
+    },
+  });
+
+  _workspaceDbs.set(id, wrapped);
+  return wrapped;
+}
+
 module.exports = db;
+module.exports.getWorkspaceDb = getWorkspaceDb;

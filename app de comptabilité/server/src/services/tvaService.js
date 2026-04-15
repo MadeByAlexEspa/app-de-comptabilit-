@@ -1,5 +1,3 @@
-const db = require('../db/database');
-
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
@@ -32,10 +30,11 @@ function ventilerParTaux(rows) {
 /**
  * Déclaration TVA sur une plage de dates (conforme CA3 — art. 287 CGI).
  *
+ * @param {object} db    - workspace DB instance
  * @param {string} debut - "YYYY-MM-DD"
  * @param {string} fin   - "YYYY-MM-DD"
  */
-function getTvaReportRange(debut, fin) {
+function getTvaReportRange(db, debut, fin) {
   const detailFactures = db
     .prepare(`SELECT * FROM factures WHERE date >= ? AND date <= ? ORDER BY date`)
     .all(debut, fin);
@@ -73,14 +72,16 @@ function getTvaReportRange(debut, fin) {
 
 /**
  * Rétrocompatibilité : accepte un mois "YYYY-MM".
+ *
+ * @param {object} db   - workspace DB instance
  * @param {string} mois - "YYYY-MM"
  */
-function getTvaReport(mois) {
+function getTvaReport(db, mois) {
   const [y, m] = mois.split('-');
   const debut  = `${y}-${m}-01`;
   const lastDay = new Date(Number(y), Number(m), 0).getDate();
   const fin    = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
-  return { ...getTvaReportRange(debut, fin), mois };
+  return { ...getTvaReportRange(db, debut, fin), mois };
 }
 
 module.exports = { getTvaReport, getTvaReportRange };

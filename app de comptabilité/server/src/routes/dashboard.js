@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const db = require('../db/database');
+const { getWorkspaceDb } = require('../db/database');
 
 const router = Router();
 
@@ -31,6 +31,7 @@ function startOfYear() {
 // ── GET /api/dashboard ────────────────────────────────────────────────────────
 router.get('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const mois     = currentMonth();  // e.g. "2026-04"
     const todayStr = today();         // e.g. "2026-04-09"
     const janFirst = startOfYear();   // e.g. "2026-01-01"

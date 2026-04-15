@@ -2,7 +2,6 @@
  * AI accounting agent service.
  * Supports Anthropic, OpenAI, Mistral.
  */
-const db = require('../db/database');
 
 const PROVIDERS = {
   anthropic: {
@@ -47,12 +46,12 @@ const PROVIDERS = {
   },
 };
 
-function getConfig() {
+function getConfig(db) {
   return db.get('SELECT * FROM ai_config WHERE id = 1');
 }
 
-function saveConfig(data) {
-  const existing = getConfig();
+function saveConfig(db, data) {
+  const existing = getConfig(db);
   if (existing) {
     const newKey = data.api_key?.startsWith('\u2022') ? existing.api_key : data.api_key;
     db.run(
@@ -72,7 +71,7 @@ function saveConfig(data) {
   }
 }
 
-function getAccountingContext() {
+function getAccountingContext(db) {
   const totalRevenu   = db.get('SELECT COALESCE(SUM(montant_ttc),0) AS total FROM factures')?.total ?? 0;
   const totalDepenses = db.get('SELECT COALESCE(SUM(montant_ttc),0) AS total FROM depenses')?.total ?? 0;
   const totalTvaColl  = db.get('SELECT COALESCE(SUM(montant_tva),0) AS total FROM factures')?.total ?? 0;
@@ -116,12 +115,12 @@ Réponds toujours en français. Sois précis et pratique. Cite les articles du C
 ${dataBlock}${customPrompt ? `\n\nInstructions supplémentaires : ${customPrompt}` : ''}`;
 }
 
-async function chat(messages) {
-  const config = getConfig();
+async function chat(db, messages) {
+  const config = getConfig(db);
   if (!config?.api_key) {
     throw new Error('IA non configurée. Ajoutez votre clé API dans Connexions API → IA.');
   }
-  const ctx = getAccountingContext();
+  const ctx = getAccountingContext(db);
   const systemPrompt = buildSystemPrompt(config.system_prompt, ctx);
   const provider = config.provider || 'anthropic';
   const model    = config.model    || PROVIDERS[provider]?.defaultModel;
@@ -207,7 +206,7 @@ async function callGemini(apiKey, model, systemPrompt, messages) {
   return data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
 }
 
-function deleteConfig() {
+function deleteConfig(db) {
   db.run('DELETE FROM ai_config WHERE id = 1');
 }
 

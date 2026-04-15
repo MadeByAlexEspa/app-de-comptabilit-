@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const db = require('../db/database');
+const { getWorkspaceDb } = require('../db/database');
 
 const router = Router();
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -26,6 +26,7 @@ function validateDate(val, name, res) {
 //   fin        (date)    – borne haute (optionnelle)
 router.get('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { categorie, filtre, debut, fin } = req.query;
 
     if (!categorie && !filtre) {
@@ -36,7 +37,9 @@ router.get('/', (req, res, next) => {
 
     let factures = [], depenses = [];
 
+    const ALLOWED_TABLES = new Set(['factures', 'depenses']);
     function query(table, conditions, params) {
+      if (!ALLOWED_TABLES.has(table)) throw new Error(`Table non autorisée : ${table}`);
       const sql = `SELECT * FROM ${table} WHERE ${conditions.join(' AND ')} ORDER BY date DESC`;
       return db.prepare(sql).all(params);
     }

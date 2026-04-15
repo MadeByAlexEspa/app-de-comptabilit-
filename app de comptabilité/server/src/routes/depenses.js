@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const db = require('../db/database');
+const { getWorkspaceDb } = require('../db/database');
 const { validateTaux, validateStatut, computeAmounts } = require('../utils/entryUtils');
 
 const router = Router();
@@ -50,6 +50,7 @@ function parseBody(body, requireAll = true) {
 // ── GET /api/depenses ─────────────────────────────────────────────────────────
 router.get('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { mois } = req.query;
 
     let rows;
@@ -70,6 +71,7 @@ router.get('/', (req, res, next) => {
 // ── GET /api/depenses/:id ─────────────────────────────────────────────────────
 router.get('/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const row = db.prepare('SELECT * FROM depenses WHERE id = ?').get(req.params.id);
     if (!row) {
       return res.status(404).json({ error: 'Dépense introuvable' });
@@ -83,6 +85,7 @@ router.get('/:id', (req, res, next) => {
 // ── POST /api/depenses ────────────────────────────────────────────────────────
 router.post('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const data = parseBody(req.body, true);
 
     const result = db
@@ -102,6 +105,7 @@ router.post('/', (req, res, next) => {
 // ── PUT /api/depenses/:id ─────────────────────────────────────────────────────
 router.put('/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const existing = db.prepare('SELECT * FROM depenses WHERE id = ?').get(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Dépense introuvable' });
@@ -134,6 +138,7 @@ router.put('/:id', (req, res, next) => {
 // ── DELETE /api/depenses/:id ──────────────────────────────────────────────────
 router.delete('/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const existing = db.prepare('SELECT * FROM depenses WHERE id = ?').get(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Dépense introuvable' });

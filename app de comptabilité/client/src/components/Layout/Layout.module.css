@@ -148,6 +148,33 @@
   }
 }
 
+.workspace {
+  font-size: 11px;
+  color: #6b7280;
+  padding: 0 20px 12px;
+  border-bottom: 1px solid #1f2937;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.logoutBtn {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: #9ca3af;
+}
+
+.logoutBtn:hover {
+  background: #1f2937;
+  color: #f3f4f6;
+}
+
 /* ── AI toggle button ─────────────────────────────────────────────────────── */
 
 .aiBtn {

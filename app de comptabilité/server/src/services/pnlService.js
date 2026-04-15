@@ -1,5 +1,3 @@
-const db = require('../db/database');
-
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
@@ -88,16 +86,6 @@ const CAT_IS = new Set([
   '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
 ]);
 
-// All sets for quick "is this a P&L item?" check
-const ALL_PRODUITS_PNL = new Set([
-  ...CAT_CA, ...CAT_AUTRES_PRODUITS_EXPL, ...CAT_PRODUITS_FINANCIERS, ...CAT_PRODUITS_EXCEPTIONNELS,
-]);
-const ALL_CHARGES_PNL = new Set([
-  ...CAT_ACHATS, ...CAT_CHARGES_EXTERNES, ...CAT_IMPOTS_TAXES, ...CAT_CHARGES_PERSONNEL,
-  ...CAT_DOTATIONS, ...CAT_CHARGES_FINANCIERES, ...CAT_CHARGES_EXCEPTIONNELLES, ...CAT_IS,
-  ...CAT_AVOIRS_CLIENTS,
-]);
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function accumulate(rows, catSet, acc) {
@@ -121,13 +109,12 @@ function buildBucket(rows, catSet) {
 /**
  * Compte de résultat avec Soldes Intermédiaires de Gestion (SIG).
  * Conforme PCG — règlement ANC n°2014-03, art. 823-1.
- * Les mouvements de capitaux (Cl. 1), d'immobilisations (Cl. 2)
- * et les virements internes (Cl. 5) sont exclus.
  *
+ * @param {object} db    - workspace DB instance
  * @param {string} debut - "YYYY-MM-DD"
  * @param {string} fin   - "YYYY-MM-DD"
  */
-function getPnlReport(debut, fin) {
+function getPnlReport(db, debut, fin) {
   const factures = db.prepare('SELECT * FROM factures WHERE date >= ? AND date <= ?').all(debut, fin);
   const depenses = db.prepare('SELECT * FROM depenses WHERE date >= ? AND date <= ?').all(debut, fin);
 

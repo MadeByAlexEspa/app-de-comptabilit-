@@ -1,12 +1,14 @@
 const { Router } = require('express');
 const { PROVIDERS, getConfig, saveConfig, deleteConfig, chat } = require('../services/aiService');
+const { getWorkspaceDb } = require('../db/database');
 
 const router = Router();
 
 // GET /api/ai/config
 router.get('/config', (req, res, next) => {
   try {
-    const config = getConfig();
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const config = getConfig(db);
     if (!config) return res.json({ configured: false, providers: PROVIDERS });
     const { api_key, ...safe } = config;
     res.json({
@@ -21,9 +23,10 @@ router.get('/config', (req, res, next) => {
 // POST /api/ai/config
 router.post('/config', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { provider, api_key, model, system_prompt } = req.body;
     if (!provider || !api_key) return res.status(400).json({ error: 'provider et api_key sont requis' });
-    saveConfig({ provider, api_key, model, system_prompt });
+    saveConfig(db, { provider, api_key, model, system_prompt });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -31,7 +34,8 @@ router.post('/config', (req, res, next) => {
 // DELETE /api/ai/config
 router.delete('/config', (req, res, next) => {
   try {
-    deleteConfig();
+    const db = getWorkspaceDb(req.user.workspaceId);
+    deleteConfig(db);
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -39,11 +43,12 @@ router.delete('/config', (req, res, next) => {
 // POST /api/ai/chat
 router.post('/chat', async (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { messages } = req.body;
     if (!Array.isArray(messages) || !messages.length) {
       return res.status(400).json({ error: 'messages est requis' });
     }
-    const reply = await chat(messages);
+    const reply = await chat(db, messages);
     res.json({ reply });
   } catch (e) { next(e); }
 });

@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getPnlReport } = require('../services/pnlService');
+const { getWorkspaceDb } = require('../db/database');
 
 const router = Router();
 
@@ -8,6 +9,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // ── GET /api/pnl?debut=YYYY-MM-DD&fin=YYYY-MM-DD ──────────────────────────────
 router.get('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { debut, fin } = req.query;
 
     if (!debut || !fin) {
@@ -28,7 +30,7 @@ router.get('/', (req, res, next) => {
       });
     }
 
-    const report = getPnlReport(debut, fin);
+    const report = getPnlReport(db, debut, fin);
     res.json(report);
   } catch (err) {
     next(err);

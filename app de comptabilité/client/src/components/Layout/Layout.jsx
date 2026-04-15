@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 import AIChatPanel from '../AIChatPanel/AIChatPanel.jsx'
+import { useAuth } from '../../context/AuthContext.jsx'
 import styles from './Layout.module.css'
 
 const navItems = [
@@ -12,6 +13,7 @@ const navItems = [
 
 export default function Layout({ children }) {
   const [chatOpen, setChatOpen] = useState(false)
+  const { user, logout } = useAuth()
 
   return (
     <div className={styles.wrapper}>
@@ -20,6 +22,9 @@ export default function Layout({ children }) {
           <span className={styles.brandIcon}>📒</span>
           <span className={styles.brandName}>Comptabilité</span>
         </div>
+        {user?.workspaceName && (
+          <div className={styles.workspace}>{user.workspaceName}</div>
+        )}
         <nav className={styles.nav}>
           {navItems.map(({ to, label, icon, end }) => (
             <NavLink
@@ -36,6 +41,13 @@ export default function Layout({ children }) {
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
+          <button
+            className={`${styles.navItem} ${styles.logoutBtn}`}
+            onClick={logout}
+          >
+            <span className={styles.navIcon}>↩</span>
+            <span className={styles.navLabel}>Déconnexion</span>
+          </button>
           <button
             className={`${styles.navItem} ${styles.aiBtn} ${chatOpen ? styles.aiBtnActive : ''}`}
             onClick={() => setChatOpen(v => !v)}

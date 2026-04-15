@@ -1,11 +1,22 @@
 const BASE = '/api'
 
 async function request(path, options = {}) {
+  const token = localStorage.getItem('auth_token')
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined
+    body: options.body ? JSON.stringify(options.body) : undefined,
   })
+
+  if (res.status === 401) {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+    throw new Error('Session expirée')
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: res.statusText }))
     throw new Error(err.error || res.statusText)
@@ -64,6 +75,11 @@ export const api = {
   saveAIConfig:   (data)     => request('/ai/config', { method: 'POST',   body: data }),
   deleteAIConfig: ()         => request('/ai/config', { method: 'DELETE' }),
   aiChat:         (messages) => request('/ai/chat',   { method: 'POST',   body: { messages } }),
+
+  // Auth
+  authRegister: (data) => request('/auth/register', { method: 'POST', body: data }),
+  authLogin:    (data) => request('/auth/login',    { method: 'POST', body: data }),
+  authMe:       ()     => request('/auth/me'),
 }
 
 export function formatEur(amount) {

@@ -2,15 +2,16 @@
  * Shine API v2 integration service.
  * Auth: Authorization: Bearer {access_token}
  * Docs: https://developers.shine.fr/
+ *
+ * All functions accept `db` as their first argument (the workspace DB).
  */
-const db = require('../db/database');
 
 const SHINE_BASE = 'https://api.shine.fr/v2';
 
 // ── Fallback PCG categories (new tiers with no history) ───────────────────────
 
-const DEFAULT_CREDIT_CAT = '706 – Prestations de services';
-const DEFAULT_DEBIT_CAT  = '604 – Achats de prestations de services';
+const DEFAULT_CREDIT_CAT = '706 \u2013 Prestations de services';
+const DEFAULT_DEBIT_CAT  = '604 \u2013 Achats de prestations de services';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -20,7 +21,7 @@ function round2(n) {
 
 // Look up the most recent PCG category used for this tiers name.
 // Searches factures (for credits) or dépenses (for debits) case-insensitively.
-function lookupTiersCategorie(tiers, side) {
+function lookupTiersCategorie(db, tiers, side) {
   const t = (tiers || '').trim();
   if (!t) return side === 'credit' ? DEFAULT_CREDIT_CAT : DEFAULT_DEBIT_CAT;
 
@@ -41,17 +42,17 @@ function lookupTiersCategorie(tiers, side) {
 
 // ── Multi-account CRUD ────────────────────────────────────────────────────────
 
-function getAllAccounts() {
+function getAllAccounts(db) {
   return db.prepare(
     'SELECT id, name, shine_account_id, iban, auto_sync_enabled, last_sync_at, created_at FROM shine_accounts ORDER BY created_at'
   ).all();
 }
 
-function getAccount(id) {
+function getAccount(db, id) {
   return db.get('SELECT * FROM shine_accounts WHERE id = ?', [id]);
 }
 
-function createAccount(data) {
+function createAccount(db, data) {
   const result = db.prepare(
     'INSERT INTO shine_accounts (name, access_token, shine_account_id, iban, auto_sync_enabled) VALUES (@name, @access_token, @shine_account_id, @iban, @auto_sync_enabled)'
   ).run({
@@ -64,8 +65,8 @@ function createAccount(data) {
   return result.lastInsertRowid;
 }
 
-function updateAccount(id, data) {
-  const existing = getAccount(id);
+function updateAccount(db, id, data) {
+  const existing = getAccount(db, id);
   if (!existing) throw new Error('Compte introuvable');
   // Preserve token if placeholder submitted
   const newToken = data.access_token?.startsWith('\u2022') ? existing.access_token : data.access_token;
@@ -82,7 +83,7 @@ function updateAccount(id, data) {
   );
 }
 
-function deleteAccount(id) {
+function deleteAccount(db, id) {
   db.run('DELETE FROM shine_accounts WHERE id = ?', [id]);
 }
 
@@ -111,25 +112,25 @@ async function fetchTransactions(accessToken, shineAccountId, { after, cursor } 
   return shineFetch(url, accessToken);
 }
 
-function isAlreadyImported(shineId) {
+function isAlreadyImported(db, shineId) {
   return !!db.get('SELECT id FROM shine_imports WHERE shine_transaction_id = ?', [shineId]);
 }
 
-function recordImport(shineId, type, localId) {
+function recordImport(db, shineId, type, localId) {
   db.run(
     'INSERT INTO shine_imports (shine_transaction_id, local_type, local_id) VALUES (?, ?, ?)',
     [shineId, type, localId]
   );
 }
 
-function nextShineNumero() {
+function nextShineNumero(db) {
   const row = db.get(
     "SELECT MAX(CAST(SUBSTR(numero, 5) AS INTEGER)) AS n FROM factures WHERE numero LIKE 'SHN-%'"
   );
   return `SHN-${String((row?.n || 0) + 1).padStart(5, '0')}`;
 }
 
-function importTransaction(tx) {
+function importTransaction(db, tx) {
   // Shine: amount in cents, positive = credit, negative = debit
   const amountCents = typeof tx.amount === 'number' ? Math.abs(tx.amount) : 0;
   const side        = (tx.amount ?? 0) >= 0 ? 'credit' : 'debit';
@@ -145,7 +146,7 @@ function importTransaction(tx) {
              || (side === 'credit' ? 'Virement reçu' : 'Paiement');
 
   // Auto-assign category from tiers history, else use PCG default
-  const categorie = lookupTiersCategorie(label, side);
+  const categorie = lookupTiersCategorie(db, label, side);
 
   if (side === 'credit') {
     const stmt = db.prepare(`
@@ -153,7 +154,7 @@ function importTransaction(tx) {
       VALUES (@numero, @date, @client, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
     `);
     const result = stmt.run({
-      numero:      nextShineNumero(),
+      numero:      nextShineNumero(db),
       date,
       client:      label,
       description: label,
@@ -164,7 +165,7 @@ function importTransaction(tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(tx.id, 'facture', result.lastInsertRowid);
+    recordImport(db, tx.id, 'facture', result.lastInsertRowid);
   } else {
     const stmt = db.prepare(`
       INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
@@ -181,13 +182,13 @@ function importTransaction(tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(tx.id, 'depense', result.lastInsertRowid);
+    recordImport(db, tx.id, 'depense', result.lastInsertRowid);
   }
 }
 
 // ── Sync ──────────────────────────────────────────────────────────────────────
 
-async function runSync(account) {
+async function runSync(db, account) {
   const { id: accountId, access_token, shine_account_id, last_sync_at } = account;
 
   let fetched  = 0;
@@ -207,12 +208,12 @@ async function runSync(account) {
       fetched += transactions.length;
 
       for (const tx of transactions) {
-        if (isAlreadyImported(tx.id)) {
+        if (isAlreadyImported(db, tx.id)) {
           skipped++;
           continue;
         }
         try {
-          importTransaction(tx);
+          importTransaction(db, tx);
           imported++;
         } catch (e) {
           errors.push(`[${tx.id}] ${e.message}`);
@@ -243,16 +244,19 @@ async function runSync(account) {
 const MS_24H = 24 * 60 * 60 * 1000;
 
 function scheduleAutoSync() {
+  const { getWorkspaceDb } = require('../db/database');
   setInterval(async () => {
-    const accounts = getAllAccounts();
+    // Auto-sync only workspace 1 (legacy behaviour — workspace 1 is compta.db)
+    const db = getWorkspaceDb(1);
+    const accounts = getAllAccounts(db);
     for (const acct of accounts) {
       if (!acct.auto_sync_enabled || !acct.shine_account_id) continue;
       const lastSync = acct.last_sync_at ? new Date(acct.last_sync_at).getTime() : 0;
       if (Date.now() - lastSync < MS_24H) continue;
       console.log(`[shine] Auto-sync démarré pour "${acct.name}"…`);
       try {
-        const full = getAccount(acct.id);
-        const result = await runSync(full);
+        const full = getAccount(db, acct.id);
+        const result = await runSync(db, full);
         console.log(`[shine] "${acct.name}" : ${result.imported} importées, ${result.skipped} ignorées`);
       } catch (e) {
         console.error(`[shine] "${acct.name}" auto-sync échoué :`, e.message);

@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const db = require('../db/database');
+const { getWorkspaceDb } = require('../db/database');
 const {
   getAllAccounts,
   getAccount,
@@ -18,18 +18,20 @@ const router = Router();
 // GET /api/qonto/configs — list all configured accounts (no secret keys)
 router.get('/configs', (req, res, next) => {
   try {
-    res.json({ accounts: getAllAccounts() });
+    const db = getWorkspaceDb(req.user.workspaceId);
+    res.json({ accounts: getAllAccounts(db) });
   } catch (e) { next(e); }
 });
 
 // POST /api/qonto/configs — create new account
 router.post('/configs', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { name, organization_slug, secret_key, iban, auto_sync_enabled } = req.body;
     if (!organization_slug || !secret_key) {
       return res.status(400).json({ error: 'organization_slug et secret_key sont requis' });
     }
-    const id = createAccount({ name, organization_slug, secret_key, iban, auto_sync_enabled });
+    const id = createAccount(db, { name, organization_slug, secret_key, iban, auto_sync_enabled });
     res.json({ ok: true, id });
   } catch (e) { next(e); }
 });
@@ -37,7 +39,8 @@ router.post('/configs', (req, res, next) => {
 // GET /api/qonto/configs/:id — single account (no secret key)
 router.get('/configs/:id', (req, res, next) => {
   try {
-    const acct = getAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const acct = getAccount(db, Number(req.params.id));
     if (!acct) return res.status(404).json({ error: 'Compte introuvable' });
     const { secret_key, ...safe } = acct;
     res.json({
@@ -50,9 +53,10 @@ router.get('/configs/:id', (req, res, next) => {
 // PUT /api/qonto/configs/:id — update account
 router.put('/configs/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const id = Number(req.params.id);
     const { name, organization_slug, secret_key, iban, auto_sync_enabled } = req.body;
-    updateAccount(id, { name, organization_slug, secret_key, iban, auto_sync_enabled });
+    updateAccount(db, id, { name, organization_slug, secret_key, iban, auto_sync_enabled });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -60,7 +64,8 @@ router.put('/configs/:id', (req, res, next) => {
 // DELETE /api/qonto/configs/:id — delete account
 router.delete('/configs/:id', (req, res, next) => {
   try {
-    deleteAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    deleteAccount(db, Number(req.params.id));
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -68,7 +73,8 @@ router.delete('/configs/:id', (req, res, next) => {
 // GET /api/qonto/configs/:id/bank-accounts — fetch Qonto bank accounts for this config
 router.get('/configs/:id/bank-accounts', async (req, res, next) => {
   try {
-    const acct = getAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const acct = getAccount(db, Number(req.params.id));
     if (!acct?.organization_slug) return res.status(400).json({ error: 'Compte non configuré' });
     const data = await getOrganization(acct.organization_slug, acct.secret_key);
     const accounts = (data.organization?.bank_accounts || []).map(a => ({
@@ -84,11 +90,12 @@ router.get('/configs/:id/bank-accounts', async (req, res, next) => {
 // POST /api/qonto/configs/:id/sync — sync specific account
 router.post('/configs/:id/sync', async (req, res, next) => {
   try {
-    const acct = getAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const acct = getAccount(db, Number(req.params.id));
     if (!acct?.organization_slug || !acct?.secret_key || !acct?.iban) {
       return res.status(400).json({ error: 'Compte non configuré (slug, clé API et IBAN requis)' });
     }
-    const result = await runSync(acct);
+    const result = await runSync(db, acct);
     res.json(result);
   } catch (e) { next(e); }
 });
@@ -96,7 +103,8 @@ router.post('/configs/:id/sync', async (req, res, next) => {
 // POST /api/qonto/sync-all — sync all configured accounts
 router.post('/sync-all', async (req, res, next) => {
   try {
-    const accounts = getAllAccounts();
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const accounts = getAllAccounts(db);
     const results = [];
     for (const acct of accounts) {
       if (!acct.iban) {
@@ -104,8 +112,8 @@ router.post('/sync-all', async (req, res, next) => {
         continue;
       }
       try {
-        const full = getAccount(acct.id);
-        const r = await runSync(full);
+        const full = getAccount(db, acct.id);
+        const r = await runSync(db, full);
         results.push({ id: acct.id, name: acct.name, ...r });
       } catch (e) {
         results.push({ id: acct.id, name: acct.name, error: e.message });
@@ -120,7 +128,8 @@ router.post('/sync-all', async (req, res, next) => {
 // GET /api/qonto/config
 router.get('/config', (req, res, next) => {
   try {
-    const config = getConfig();
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const config = getConfig(db);
     if (!config?.organization_slug) {
       return res.json({ configured: false });
     }
@@ -140,12 +149,13 @@ router.get('/config', (req, res, next) => {
 // POST /api/qonto/config — upserts the first account (legacy)
 router.post('/config', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { organization_slug, secret_key, iban, auto_sync_enabled } = req.body;
     if (!organization_slug || !secret_key) {
       return res.status(400).json({ error: 'organization_slug et secret_key sont requis' });
     }
 
-    const existing = getConfig();
+    const existing = getConfig(db);
     const autoSync = auto_sync_enabled ? 1 : 0;
 
     if (existing?.id && existing.id !== undefined) {
@@ -176,7 +186,8 @@ router.post('/config', (req, res, next) => {
 // GET /api/qonto/accounts — fetch Qonto bank accounts from API (legacy, uses first config)
 router.get('/accounts', async (req, res, next) => {
   try {
-    const config = getConfig();
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const config = getConfig(db);
     if (!config?.organization_slug) {
       return res.status(400).json({ error: 'Qonto non configuré' });
     }
@@ -196,11 +207,12 @@ router.get('/accounts', async (req, res, next) => {
 // POST /api/qonto/sync
 router.post('/sync', async (req, res, next) => {
   try {
-    const config = getConfig();
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const config = getConfig(db);
     if (!config?.organization_slug || !config?.secret_key || !config?.iban) {
       return res.status(400).json({ error: 'Qonto non configuré (slug, clé API et IBAN requis)' });
     }
-    const result = await runSync(config);
+    const result = await runSync(db, config);
     res.json(result);
   } catch (e) { next(e); }
 });
@@ -208,6 +220,7 @@ router.post('/sync', async (req, res, next) => {
 // GET /api/qonto/sync/log
 router.get('/sync/log', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const logs = db
       .prepare(`
         SELECT l.*, a.name AS account_name
@@ -223,6 +236,7 @@ router.get('/sync/log', (req, res, next) => {
 // POST /api/qonto/reset
 router.post('/reset', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     db.run('DELETE FROM qonto_imports');
     db.run('DELETE FROM qonto_sync_log');
     db.run('DELETE FROM factures');

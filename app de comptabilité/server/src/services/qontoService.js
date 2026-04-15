@@ -2,8 +2,9 @@
  * Qonto API v2 integration service.
  * Auth: Authorization header = "{organization_slug}:{secret_key}"
  * Docs: https://api-doc.qonto.com/
+ *
+ * All functions accept `db` as their first argument (the workspace DB).
  */
-const db = require('../db/database');
 
 const QONTO_BASE = 'https://thirdparty.qonto.com/v2';
 
@@ -20,7 +21,7 @@ function round2(n) {
 
 // Look up the most recent PCG category used for this tiers name.
 // Searches factures (for credits) or dépenses (for debits) case-insensitively.
-function lookupTiersCategorie(tiers, side) {
+function lookupTiersCategorie(db, tiers, side) {
   const t = (tiers || '').trim();
   if (!t) return side === 'credit' ? DEFAULT_CREDIT_CAT : DEFAULT_DEBIT_CAT;
 
@@ -41,17 +42,17 @@ function lookupTiersCategorie(tiers, side) {
 
 // ── Multi-account CRUD ────────────────────────────────────────────────────────
 
-function getAllAccounts() {
+function getAllAccounts(db) {
   return db.prepare(
     'SELECT id, name, organization_slug, iban, auto_sync_enabled, last_sync_at, created_at FROM qonto_accounts ORDER BY created_at'
   ).all();
 }
 
-function getAccount(id) {
+function getAccount(db, id) {
   return db.get('SELECT * FROM qonto_accounts WHERE id = ?', [id]);
 }
 
-function createAccount(data) {
+function createAccount(db, data) {
   const result = db.prepare(
     'INSERT INTO qonto_accounts (name, organization_slug, secret_key, iban, auto_sync_enabled) VALUES (@name, @organization_slug, @secret_key, @iban, @auto_sync_enabled)'
   ).run({
@@ -64,8 +65,8 @@ function createAccount(data) {
   return result.lastInsertRowid;
 }
 
-function updateAccount(id, data) {
-  const existing = getAccount(id);
+function updateAccount(db, id, data) {
+  const existing = getAccount(db, id);
   if (!existing) throw new Error('Compte introuvable');
   const newSecret = data.secret_key?.startsWith('\u2022') ? existing.secret_key : data.secret_key;
   db.run(
@@ -81,13 +82,13 @@ function updateAccount(id, data) {
   );
 }
 
-function deleteAccount(id) {
+function deleteAccount(db, id) {
   db.run('DELETE FROM qonto_accounts WHERE id = ?', [id]);
 }
 
 // ── Legacy single-config accessor (backward compat) ───────────────────────────
 
-function getConfig() {
+function getConfig(db) {
   const acct = db.get('SELECT * FROM qonto_accounts ORDER BY created_at LIMIT 1');
   if (acct) return acct;
   return db.get('SELECT * FROM qonto_config WHERE id = 1');
@@ -117,25 +118,25 @@ async function fetchTransactions(slug, secretKey, iban, { after, page = 1 } = {}
   return qontoFetch(url, slug, secretKey);
 }
 
-function isAlreadyImported(qontoId) {
+function isAlreadyImported(db, qontoId) {
   return !!db.get('SELECT id FROM qonto_imports WHERE qonto_transaction_id = ?', [qontoId]);
 }
 
-function recordImport(qontoId, type, localId) {
+function recordImport(db, qontoId, type, localId) {
   db.run(
     'INSERT INTO qonto_imports (qonto_transaction_id, local_type, local_id) VALUES (?, ?, ?)',
     [qontoId, type, localId]
   );
 }
 
-function nextQontoNumero() {
+function nextQontoNumero(db) {
   const row = db.get(
     "SELECT MAX(CAST(SUBSTR(numero, 5) AS INTEGER)) AS n FROM factures WHERE numero LIKE 'QTO-%'"
   );
   return `QTO-${String((row?.n || 0) + 1).padStart(5, '0')}`;
 }
 
-function importTransaction(tx) {
+function importTransaction(db, tx) {
   const amountCents = tx.amount_cents ?? Math.round((tx.amount || 0) * 100);
   const montantTtc  = round2(amountCents / 100);
 
@@ -149,7 +150,7 @@ function importTransaction(tx) {
   const note  = (tx.note  || '').trim();
 
   // Auto-assign category from tiers history, else use PCG default
-  const categorie = lookupTiersCategorie(label, tx.side);
+  const categorie = lookupTiersCategorie(db, label, tx.side);
 
   if (tx.side === 'credit') {
     const stmt = db.prepare(`
@@ -157,7 +158,7 @@ function importTransaction(tx) {
       VALUES (@numero, @date, @client, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
     `);
     const result = stmt.run({
-      numero:      nextQontoNumero(),
+      numero:      nextQontoNumero(db),
       date,
       client:      label,
       description: note || label,
@@ -168,7 +169,7 @@ function importTransaction(tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(tx.transaction_id, 'facture', result.lastInsertRowid);
+    recordImport(db, tx.transaction_id, 'facture', result.lastInsertRowid);
   } else {
     const stmt = db.prepare(`
       INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
@@ -185,13 +186,13 @@ function importTransaction(tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(tx.transaction_id, 'depense', result.lastInsertRowid);
+    recordImport(db, tx.transaction_id, 'depense', result.lastInsertRowid);
   }
 }
 
 // ── Sync ──────────────────────────────────────────────────────────────────────
 
-async function runSync(account) {
+async function runSync(db, account) {
   const { id: accountId, organization_slug: slug, secret_key, iban, last_sync_at } = account;
 
   let page     = 1;
@@ -211,12 +212,12 @@ async function runSync(account) {
       fetched += transactions.length;
 
       for (const tx of transactions) {
-        if (isAlreadyImported(tx.transaction_id)) {
+        if (isAlreadyImported(db, tx.transaction_id)) {
           skipped++;
           continue;
         }
         try {
-          importTransaction(tx);
+          importTransaction(db, tx);
           imported++;
         } catch (e) {
           errors.push(`[${tx.transaction_id}] ${e.message}`);
@@ -248,20 +249,25 @@ async function runSync(account) {
 }
 
 // ── Auto-sync (daily, all accounts) ──────────────────────────────────────────
+// The auto-sync uses workspace 1 (compta.db) for the legacy schedule.
+// For a full multi-tenant auto-sync, iterate over all workspaces from masterDb.
 
 const MS_24H = 24 * 60 * 60 * 1000;
 
 function scheduleAutoSync() {
+  const { getWorkspaceDb } = require('../db/database');
   setInterval(async () => {
-    const accounts = getAllAccounts();
+    // Auto-sync only workspace 1 (legacy behaviour — workspace 1 is compta.db)
+    const db = getWorkspaceDb(1);
+    const accounts = getAllAccounts(db);
     for (const acct of accounts) {
       if (!acct.auto_sync_enabled || !acct.iban) continue;
       const lastSync = acct.last_sync_at ? new Date(acct.last_sync_at).getTime() : 0;
       if (Date.now() - lastSync < MS_24H) continue;
       console.log(`[qonto] Auto-sync démarré pour "${acct.name}"…`);
       try {
-        const fullAcct = getAccount(acct.id);
-        const result = await runSync(fullAcct);
+        const fullAcct = getAccount(db, acct.id);
+        const result = await runSync(db, fullAcct);
         console.log(`[qonto] "${acct.name}" : ${result.imported} importées, ${result.skipped} ignorées`);
       } catch (e) {
         console.error(`[qonto] "${acct.name}" auto-sync échoué :`, e.message);

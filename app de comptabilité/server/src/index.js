@@ -3,8 +3,14 @@ require('dotenv').config();
 const express = require('express');
 const cors    = require('cors');
 
-// Initialise the DB (creates tables + seed data) on startup
+// Initialise the master DB (workspaces + users) on startup
+require('./db/masterDb');
+
+// Initialise the workspace DB (creates tables + seed data) on startup
 require('./db/database');
+
+const authRouter      = require('./routes/auth');
+const { requireAuth } = require('./middleware/authMiddleware');
 
 const facturesRouter  = require('./routes/factures');
 const depensesRouter  = require('./routes/depenses');
@@ -32,22 +38,25 @@ app.use(cors({
 
 app.use(express.json());
 
-// ── Health check ───────────────────────────────────────────────────────────────
+// ── Health check (public) ─────────────────────────────────────────────────────
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// ── Routes ─────────────────────────────────────────────────────────────────────
-app.use('/api/factures',  facturesRouter);
-app.use('/api/depenses',  depensesRouter);
-app.use('/api/tva',       tvaRouter);
-app.use('/api/pnl',       pnlRouter);
-app.use('/api/bilan',     bilanRouter);
-app.use('/api/dashboard', dashboardRouter);
-app.use('/api/qonto',        qontoRouter);
-app.use('/api/shine',        shineRouter);
-app.use('/api/transactions', transactionsRouter);
-app.use('/api/ai',           aiRouter);
+// ── Auth routes (public — no requireAuth) ─────────────────────────────────────
+app.use('/api/auth', authRouter);
+
+// ── Protected routes (requireAuth applied to every router) ────────────────────
+app.use('/api/factures',     requireAuth, facturesRouter);
+app.use('/api/depenses',     requireAuth, depensesRouter);
+app.use('/api/tva',          requireAuth, tvaRouter);
+app.use('/api/pnl',          requireAuth, pnlRouter);
+app.use('/api/bilan',        requireAuth, bilanRouter);
+app.use('/api/dashboard',    requireAuth, dashboardRouter);
+app.use('/api/qonto',        requireAuth, qontoRouter);
+app.use('/api/shine',        requireAuth, shineRouter);
+app.use('/api/transactions', requireAuth, transactionsRouter);
+app.use('/api/ai',           requireAuth, aiRouter);
 
 // ── 404 catch-all ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {

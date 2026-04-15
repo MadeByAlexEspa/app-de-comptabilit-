@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getTvaReport, getTvaReportRange } = require('../services/tvaService');
+const { getWorkspaceDb } = require('../db/database');
 
 const router = Router();
 
@@ -12,6 +13,7 @@ const MONTH_RE = /^\d{4}-\d{2}$/;
 //   ?debut=YYYY-MM-DD&fin=YYYY-MM-DD
 router.get('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { mois, debut, fin } = req.query;
 
     if (debut || fin) {
@@ -22,7 +24,7 @@ router.get('/', (req, res, next) => {
       if (!DATE_RE.test(fin))
         return res.status(400).json({ error: 'Format invalide pour "fin". Attendu : YYYY-MM-DD' });
 
-      return res.json(getTvaReportRange(debut, fin));
+      return res.json(getTvaReportRange(db, debut, fin));
     }
 
     if (!mois)
@@ -30,7 +32,7 @@ router.get('/', (req, res, next) => {
     if (!MONTH_RE.test(mois))
       return res.status(400).json({ error: 'Format du paramètre "mois" invalide. Attendu : YYYY-MM' });
 
-    res.json(getTvaReport(mois));
+    res.json(getTvaReport(db, mois));
   } catch (err) {
     next(err);
   }

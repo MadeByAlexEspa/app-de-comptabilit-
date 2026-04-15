@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getBilanReport } = require('../services/bilanService');
+const { getWorkspaceDb } = require('../db/database');
 
 const router = Router();
 
@@ -9,6 +10,7 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 // Accepte aussi "date" pour la rétrocompatibilité.
 router.get('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const fin   = req.query.fin   || req.query.date;
     const debut = req.query.debut || null;
 
@@ -22,7 +24,7 @@ router.get('/', (req, res, next) => {
       return res.status(400).json({ error: 'Format de date invalide pour "debut". Attendu : YYYY-MM-DD' });
     }
 
-    const report = getBilanReport(fin, debut);
+    const report = getBilanReport(db, fin, debut);
     res.json(report);
   } catch (err) {
     next(err);

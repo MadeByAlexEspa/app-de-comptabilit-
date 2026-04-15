@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const db = require('../db/database');
+const { getWorkspaceDb } = require('../db/database');
 const {
   getAllAccounts,
   getAccount,
@@ -17,16 +17,18 @@ const router = Router();
 // GET /api/shine/configs
 router.get('/configs', (req, res, next) => {
   try {
-    res.json({ accounts: getAllAccounts() });
+    const db = getWorkspaceDb(req.user.workspaceId);
+    res.json({ accounts: getAllAccounts(db) });
   } catch (e) { next(e); }
 });
 
 // POST /api/shine/configs
 router.post('/configs', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { name, access_token, shine_account_id, iban, auto_sync_enabled } = req.body;
     if (!access_token) return res.status(400).json({ error: 'access_token est requis' });
-    const id = createAccount({ name, access_token, shine_account_id, iban, auto_sync_enabled });
+    const id = createAccount(db, { name, access_token, shine_account_id, iban, auto_sync_enabled });
     res.json({ ok: true, id });
   } catch (e) { next(e); }
 });
@@ -34,7 +36,8 @@ router.post('/configs', (req, res, next) => {
 // GET /api/shine/configs/:id
 router.get('/configs/:id', (req, res, next) => {
   try {
-    const acct = getAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const acct = getAccount(db, Number(req.params.id));
     if (!acct) return res.status(404).json({ error: 'Compte introuvable' });
     const { access_token, ...safe } = acct;
     res.json({
@@ -49,9 +52,10 @@ router.get('/configs/:id', (req, res, next) => {
 // PUT /api/shine/configs/:id
 router.put('/configs/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const id = Number(req.params.id);
     const { name, access_token, shine_account_id, iban, auto_sync_enabled } = req.body;
-    updateAccount(id, { name, access_token, shine_account_id, iban, auto_sync_enabled });
+    updateAccount(db, id, { name, access_token, shine_account_id, iban, auto_sync_enabled });
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -59,7 +63,8 @@ router.put('/configs/:id', (req, res, next) => {
 // DELETE /api/shine/configs/:id
 router.delete('/configs/:id', (req, res, next) => {
   try {
-    deleteAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    deleteAccount(db, Number(req.params.id));
     res.json({ ok: true });
   } catch (e) { next(e); }
 });
@@ -67,7 +72,8 @@ router.delete('/configs/:id', (req, res, next) => {
 // GET /api/shine/configs/:id/bank-accounts — fetch Shine bank accounts
 router.get('/configs/:id/bank-accounts', async (req, res, next) => {
   try {
-    const acct = getAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const acct = getAccount(db, Number(req.params.id));
     if (!acct?.access_token) return res.status(400).json({ error: 'Compte non configuré' });
     const data = await getBankAccounts(acct.access_token);
     const accounts = (data.accounts || data.items || []).map(a => ({
@@ -84,11 +90,12 @@ router.get('/configs/:id/bank-accounts', async (req, res, next) => {
 // POST /api/shine/configs/:id/sync
 router.post('/configs/:id/sync', async (req, res, next) => {
   try {
-    const acct = getAccount(Number(req.params.id));
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const acct = getAccount(db, Number(req.params.id));
     if (!acct?.access_token || !acct?.shine_account_id) {
       return res.status(400).json({ error: 'Compte non configuré (token et identifiant de compte requis)' });
     }
-    const result = await runSync(acct);
+    const result = await runSync(db, acct);
     res.json(result);
   } catch (e) { next(e); }
 });
@@ -96,7 +103,8 @@ router.post('/configs/:id/sync', async (req, res, next) => {
 // POST /api/shine/sync-all
 router.post('/sync-all', async (req, res, next) => {
   try {
-    const accounts = getAllAccounts();
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const accounts = getAllAccounts(db);
     const results = [];
     for (const acct of accounts) {
       if (!acct.shine_account_id) {
@@ -104,8 +112,8 @@ router.post('/sync-all', async (req, res, next) => {
         continue;
       }
       try {
-        const full = getAccount(acct.id);
-        const r = await runSync(full);
+        const full = getAccount(db, acct.id);
+        const r = await runSync(db, full);
         results.push({ id: acct.id, name: acct.name, ...r });
       } catch (e) {
         results.push({ id: acct.id, name: acct.name, error: e.message });
@@ -120,6 +128,7 @@ router.post('/sync-all', async (req, res, next) => {
 // GET /api/shine/sync/log
 router.get('/sync/log', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const logs = db
       .prepare(`
         SELECT l.*, a.name AS account_name
@@ -135,6 +144,7 @@ router.get('/sync/log', (req, res, next) => {
 // POST /api/shine/reset
 router.post('/reset', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     db.run('DELETE FROM shine_imports');
     db.run('DELETE FROM shine_sync_log');
     db.run('UPDATE shine_accounts SET last_sync_at = NULL');

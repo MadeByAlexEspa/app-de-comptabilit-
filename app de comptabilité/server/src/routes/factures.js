@@ -1,5 +1,5 @@
 const { Router } = require('express');
-const db = require('../db/database');
+const { getWorkspaceDb } = require('../db/database');
 const { validateTaux, validateStatut, computeAmounts } = require('../utils/entryUtils');
 
 const router = Router();
@@ -53,6 +53,7 @@ function parseBody(body, requireAll = true) {
 // ── GET /api/factures ─────────────────────────────────────────────────────────
 router.get('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const { mois } = req.query; // optional filter: "YYYY-MM"
 
     let rows;
@@ -74,6 +75,7 @@ router.get('/', (req, res, next) => {
 // ── GET /api/factures/:id ─────────────────────────────────────────────────────
 router.get('/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const row = db.prepare('SELECT * FROM factures WHERE id = ?').get(req.params.id);
     if (!row) {
       return res.status(404).json({ error: 'Facture introuvable' });
@@ -87,6 +89,7 @@ router.get('/:id', (req, res, next) => {
 // ── POST /api/factures ────────────────────────────────────────────────────────
 router.post('/', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const data = parseBody(req.body, true);
 
     const result = db
@@ -106,6 +109,7 @@ router.post('/', (req, res, next) => {
 // ── PUT /api/factures/:id ─────────────────────────────────────────────────────
 router.put('/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const existing = db.prepare('SELECT * FROM factures WHERE id = ?').get(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Facture introuvable' });
@@ -140,6 +144,7 @@ router.put('/:id', (req, res, next) => {
 // ── DELETE /api/factures/:id ──────────────────────────────────────────────────
 router.delete('/:id', (req, res, next) => {
   try {
+    const db = getWorkspaceDb(req.user.workspaceId);
     const existing = db.prepare('SELECT * FROM factures WHERE id = ?').get(req.params.id);
     if (!existing) {
       return res.status(404).json({ error: 'Facture introuvable' });
