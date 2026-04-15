@@ -5,8 +5,14 @@ const router = Router();
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function validateDate(val, name, res) {
-  if (val && !DATE_RE.test(val)) {
+  if (!val) return true;
+  if (!DATE_RE.test(val)) {
     res.status(400).json({ error: `Format de date invalide pour "${name}". Attendu : YYYY-MM-DD` });
+    return false;
+  }
+  const d = new Date(val);
+  if (isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== val) {
+    res.status(400).json({ error: `Date inexistante pour "${name}" : ${val}` });
     return false;
   }
   return true;

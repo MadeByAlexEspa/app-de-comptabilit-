@@ -12,14 +12,9 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Dashboard />} />
         <Route path="/transactions" element={<Transactions />} />
-        <Route path="/factures" element={<Navigate to="/transactions" replace />} />
-        <Route path="/depenses" element={<Navigate to="/transactions" replace />} />
         <Route path="/tva" element={<TVA />} />
         <Route path="/exercice" element={<Exercice />} />
-        <Route path="/pnl" element={<Navigate to="/exercice" replace />} />
-        <Route path="/bilan" element={<Navigate to="/exercice" replace />} />
         <Route path="/integrations" element={<Integrations />} />
-        <Route path="/qonto" element={<Navigate to="/integrations" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

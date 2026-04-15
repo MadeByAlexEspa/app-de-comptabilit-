@@ -13,9 +13,12 @@ const pnlRouter       = require('./routes/pnl');
 const bilanRouter     = require('./routes/bilan');
 const dashboardRouter = require('./routes/dashboard');
 const qontoRouter        = require('./routes/qonto');
+const shineRouter        = require('./routes/shine');
 const transactionsRouter = require('./routes/transactions');
+const aiRouter           = require('./routes/ai');
 const errorHandler    = require('./middleware/errorHandler');
-const { scheduleAutoSync } = require('./services/qontoService');
+const { scheduleAutoSync: qontoAutoSync } = require('./services/qontoService');
+const { scheduleAutoSync: shineAutoSync } = require('./services/shineService');
 
 const app  = express();
 const PORT = process.env.PORT || 3001;
@@ -42,7 +45,9 @@ app.use('/api/pnl',       pnlRouter);
 app.use('/api/bilan',     bilanRouter);
 app.use('/api/dashboard', dashboardRouter);
 app.use('/api/qonto',        qontoRouter);
+app.use('/api/shine',        shineRouter);
 app.use('/api/transactions', transactionsRouter);
+app.use('/api/ai',           aiRouter);
 
 // ── 404 catch-all ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
@@ -56,7 +61,8 @@ app.use(errorHandler);
 app.listen(PORT, () => {
   console.log(`[server] Serveur démarré sur http://localhost:${PORT}`);
   console.log(`[server] Health : http://localhost:${PORT}/api/health`);
-  scheduleAutoSync();
+  qontoAutoSync();
+  shineAutoSync();
 });
 
 module.exports = app;

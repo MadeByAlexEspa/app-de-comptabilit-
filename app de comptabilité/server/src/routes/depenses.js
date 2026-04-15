@@ -1,14 +1,8 @@
 const { Router } = require('express');
 const db = require('../db/database');
+const { validateTaux, validateStatut, computeAmounts } = require('../utils/entryUtils');
 
 const router = Router();
-
-const VALID_TAUX_TVA = [0, 2.1, 5.5, 10, 20];
-const VALID_STATUTS  = ['payee', 'en_attente'];
-
-function round2(n) {
-  return Math.round(n * 100) / 100;
-}
 
 /**
  * Validate and normalise the request body.
@@ -40,30 +34,14 @@ function parseBody(body, requireAll = true) {
     }
   }
 
-  if (taux_tva !== undefined && !VALID_TAUX_TVA.includes(Number(taux_tva))) {
-    const err = new Error(`taux_tva invalide. Valeurs acceptées : ${VALID_TAUX_TVA.join(', ')}`);
-    err.status = 400;
-    throw err;
-  }
-
-  if (statut && !VALID_STATUTS.includes(statut)) {
-    const err = new Error(`statut invalide. Valeurs acceptées : ${VALID_STATUTS.join(', ')}`);
-    err.status = 400;
-    throw err;
-  }
-
-  const ht  = round2(Number(montant_ht));
-  const tva = round2(ht * Number(taux_tva) / 100);
-  const ttc = round2(ht + tva);
+  validateTaux(taux_tva);
+  validateStatut(statut);
 
   return {
     date,
     fournisseur,
     description,
-    montant_ht:  ht,
-    taux_tva:    Number(taux_tva),
-    montant_tva: tva,
-    montant_ttc: ttc,
+    ...computeAmounts(montant_ht, taux_tva),
     categorie,
     statut,
   };

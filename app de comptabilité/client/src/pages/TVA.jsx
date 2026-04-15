@@ -23,8 +23,11 @@ function computePatch(field, newValue, row) {
     return { montant_ht: ht, montant_tva: tva, montant_ttc: round2(ht + tva) }
   }
   if (field === 'taux_tva') {
-    const tva = round2(row.montant_ht * newValue / 100)
-    return { taux_tva: newValue, montant_tva: tva, montant_ttc: round2(row.montant_ht + tva) }
+    // TTC est la valeur de référence (montant bancaire réel) ; HT est déduit du taux
+    const ttc = row.montant_ttc
+    const ht  = round2(ttc / (1 + newValue / 100))
+    const tva = round2(ttc - ht)
+    return { taux_tva: newValue, montant_ht: ht, montant_tva: tva }
   }
   if (field === 'montant_ttc') {
     const ttc = newValue
@@ -107,13 +110,14 @@ function EditableCell({ value, field, row, align, onSave }) {
 
   if (editing && field === 'taux_tva') {
     return (
-      <td className={align}>
+      <td className={`${align} ${styles.tdEditing}`}>
         <select
           ref={inputRef}
           className={styles.editSelect}
           value={draft}
           onChange={e => setDraft(e.target.value)}
           onBlur={() => { onSave(field, parseFloat(draft), row); setEditing(false) }}
+          onKeyDown={e => { if (e.key === 'Escape') setEditing(false) }}
         >
           {TAUX_EDIT_OPTIONS.map(t => (
             <option key={t} value={t}>{t} %</option>
@@ -125,7 +129,7 @@ function EditableCell({ value, field, row, align, onSave }) {
 
   if (editing) {
     return (
-      <td className={align}>
+      <td className={`${align} ${styles.tdEditing}`}>
         <input
           ref={inputRef}
           className={styles.editInput}
@@ -276,6 +280,12 @@ export default function TVA() {
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState(null)
 
+  // ── Filters for detail tables ──────────────────────────────────────────────
+  const [fTiers, setFTiers] = useState('')
+  const [fTaux,  setFTaux]  = useState('')
+  const [dTiers, setDTiers] = useState('')
+  const [dTaux,  setDTaux]  = useState('')
+
   // Persist on change
   useEffect(() => {
     localStorage.setItem(LS_KEY, JSON.stringify({ mode, year, sub }))
@@ -309,6 +319,28 @@ export default function TVA() {
   }
 
   const label = useMemo(() => periodLabel(mode, year, sub), [mode, year, sub])
+
+  const filteredFactures = useMemo(() => {
+    if (!data?.detail_factures) return []
+    let rows = data.detail_factures
+    if (fTiers) { const q = fTiers.toLowerCase(); rows = rows.filter(f => (f.client || '').toLowerCase().includes(q)) }
+    if (fTaux)  rows = rows.filter(f => String(f.taux_tva) === fTaux)
+    return rows
+  }, [data, fTiers, fTaux])
+
+  const filteredDepenses = useMemo(() => {
+    if (!data?.detail_depenses) return []
+    let rows = data.detail_depenses
+    if (dTiers) { const q = dTiers.toLowerCase(); rows = rows.filter(d => (d.fournisseur || '').toLowerCase().includes(q)) }
+    if (dTaux)  rows = rows.filter(d => String(d.taux_tva) === dTaux)
+    return rows
+  }, [data, dTiers, dTaux])
+
+  const tauxOptions = useMemo(() => {
+    if (!data) return []
+    const all = [...(data.detail_factures || []), ...(data.detail_depenses || [])]
+    return [...new Set(all.map(r => String(r.taux_tva)))].sort((a, b) => Number(b) - Number(a))
+  }, [data])
 
   useEffect(() => {
     if (!debut || !fin) return
@@ -410,44 +442,71 @@ export default function TVA() {
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
               Entrées — {label}
-              <span className={styles.sectionCount}>{data.detail_factures.length}</span>
+              <span className={styles.sectionCount}>
+                {fTiers || fTaux ? `${filteredFactures.length} / ${data.detail_factures.length}` : data.detail_factures.length}
+              </span>
             </h2>
             {data.detail_factures.length === 0 ? (
               <p className={styles.empty}>Aucune entrée sur cette période.</p>
             ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Numéro</th><th>Date</th><th>Tiers</th>
-                    <th className={styles.right}>HT</th>
-                    <th className={styles.right}>Taux</th>
-                    <th className={styles.right}>TVA</th>
-                    <th className={styles.right}>TTC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.detail_factures.map(f => (
-                    <tr key={f.id}>
-                      <td>{f.numero}</td>
-                      <td>{formatDate(f.date)}</td>
-                      <td>{f.client}</td>
-                      <EditableCell value={f.montant_ht}  field="montant_ht"  row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
-                      <EditableCell value={f.taux_tva}    field="taux_tva"    row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
-                      <td className={styles.right}>{formatEur(f.montant_tva)}</td>
-                      <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+              <>
+                <div className={styles.filterBar}>
+                  <input
+                    className={styles.filterInput}
+                    type="text"
+                    placeholder="Rechercher un client…"
+                    value={fTiers}
+                    onChange={e => setFTiers(e.target.value)}
+                  />
+                  <select
+                    className={styles.filterSelect}
+                    value={fTaux}
+                    onChange={e => setFTaux(e.target.value)}
+                  >
+                    <option value="">Tous taux TVA</option>
+                    {tauxOptions.map(t => <option key={t} value={t}>{t} %</option>)}
+                  </select>
+                  {(fTiers || fTaux) && (
+                    <button className={styles.btnClearFilters} onClick={() => { setFTiers(''); setFTaux('') }}>
+                      × Effacer
+                    </button>
+                  )}
+                </div>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Tiers</th>
+                      <th className={styles.right}>HT</th>
+                      <th className={styles.right}>Taux</th>
+                      <th className={styles.right}>TVA</th>
+                      <th className={styles.right}>TTC</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={3}><strong>Total</strong></td>
-                    <td className={styles.right}><strong>{formatEur(data.collectee.total_base_ht)}</strong></td>
-                    <td />
-                    <td className={styles.right}><strong>{formatEur(data.collectee.total_tva)}</strong></td>
-                    <td className={styles.right}><strong>{formatEur(data.detail_factures.reduce((s, f) => s + f.montant_ttc, 0))}</strong></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredFactures.length === 0 ? (
+                      <tr><td colSpan={6} className={styles.emptyCell}>Aucun résultat.</td></tr>
+                    ) : filteredFactures.map(f => (
+                      <tr key={f.id}>
+                        <td>{formatDate(f.date)}</td>
+                        <td>{f.client}</td>
+                        <EditableCell value={f.montant_ht}  field="montant_ht"  row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+                        <EditableCell value={f.taux_tva}    field="taux_tva"    row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+                        <td className={styles.right}>{formatEur(f.montant_tva)}</td>
+                        <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2}><strong>Total{(fTiers || fTaux) ? ' (filtré)' : ''}</strong></td>
+                      <td className={styles.right}><strong>{formatEur(filteredFactures.reduce((s, f) => s + f.montant_ht, 0))}</strong></td>
+                      <td />
+                      <td className={styles.right}><strong>{formatEur(filteredFactures.reduce((s, f) => s + f.montant_tva, 0))}</strong></td>
+                      <td className={styles.right}><strong>{formatEur(filteredFactures.reduce((s, f) => s + f.montant_ttc, 0))}</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </>
             )}
           </div>
 
@@ -455,43 +514,71 @@ export default function TVA() {
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
               Sorties — {label}
-              <span className={styles.sectionCount}>{data.detail_depenses.length}</span>
+              <span className={styles.sectionCount}>
+                {dTiers || dTaux ? `${filteredDepenses.length} / ${data.detail_depenses.length}` : data.detail_depenses.length}
+              </span>
             </h2>
             {data.detail_depenses.length === 0 ? (
               <p className={styles.empty}>Aucune sortie sur cette période.</p>
             ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Date</th><th>Tiers</th>
-                    <th className={styles.right}>HT</th>
-                    <th className={styles.right}>Taux</th>
-                    <th className={styles.right}>TVA</th>
-                    <th className={styles.right}>TTC</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {data.detail_depenses.map(d => (
-                    <tr key={d.id}>
-                      <td>{formatDate(d.date)}</td>
-                      <td>{d.fournisseur}</td>
-                      <EditableCell value={d.montant_ht}  field="montant_ht"  row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
-                      <EditableCell value={d.taux_tva}    field="taux_tva"    row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
-                      <td className={styles.right}>{formatEur(d.montant_tva)}</td>
-                      <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+              <>
+                <div className={styles.filterBar}>
+                  <input
+                    className={styles.filterInput}
+                    type="text"
+                    placeholder="Rechercher un fournisseur…"
+                    value={dTiers}
+                    onChange={e => setDTiers(e.target.value)}
+                  />
+                  <select
+                    className={styles.filterSelect}
+                    value={dTaux}
+                    onChange={e => setDTaux(e.target.value)}
+                  >
+                    <option value="">Tous taux TVA</option>
+                    {tauxOptions.map(t => <option key={t} value={t}>{t} %</option>)}
+                  </select>
+                  {(dTiers || dTaux) && (
+                    <button className={styles.btnClearFilters} onClick={() => { setDTiers(''); setDTaux('') }}>
+                      × Effacer
+                    </button>
+                  )}
+                </div>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Date</th><th>Tiers</th>
+                      <th className={styles.right}>HT</th>
+                      <th className={styles.right}>Taux</th>
+                      <th className={styles.right}>TVA</th>
+                      <th className={styles.right}>TTC</th>
                     </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr>
-                    <td colSpan={2}><strong>Total</strong></td>
-                    <td className={styles.right}><strong>{formatEur(data.deductible.total_base_ht)}</strong></td>
-                    <td />
-                    <td className={styles.right}><strong>{formatEur(data.deductible.total_tva)}</strong></td>
-                    <td className={styles.right}><strong>{formatEur(data.detail_depenses.reduce((s, d) => s + d.montant_ttc, 0))}</strong></td>
-                  </tr>
-                </tfoot>
-              </table>
+                  </thead>
+                  <tbody>
+                    {filteredDepenses.length === 0 ? (
+                      <tr><td colSpan={6} className={styles.emptyCell}>Aucun résultat.</td></tr>
+                    ) : filteredDepenses.map(d => (
+                      <tr key={d.id}>
+                        <td>{formatDate(d.date)}</td>
+                        <td>{d.fournisseur}</td>
+                        <EditableCell value={d.montant_ht}  field="montant_ht"  row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+                        <EditableCell value={d.taux_tva}    field="taux_tva"    row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+                        <td className={styles.right}>{formatEur(d.montant_tva)}</td>
+                        <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2}><strong>Total{(dTiers || dTaux) ? ' (filtré)' : ''}</strong></td>
+                      <td className={styles.right}><strong>{formatEur(filteredDepenses.reduce((s, d) => s + d.montant_ht, 0))}</strong></td>
+                      <td />
+                      <td className={styles.right}><strong>{formatEur(filteredDepenses.reduce((s, d) => s + d.montant_tva, 0))}</strong></td>
+                      <td className={styles.right}><strong>{formatEur(filteredDepenses.reduce((s, d) => s + d.montant_ttc, 0))}</strong></td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </>
             )}
           </div>
         </>

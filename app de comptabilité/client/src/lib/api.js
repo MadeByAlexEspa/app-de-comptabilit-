@@ -44,15 +44,26 @@ export const api = {
   syncQontoAccount:       (id)      => request(`/qonto/configs/${id}/sync`,       { method: 'POST' }),
   syncAllQonto:           ()        => request('/qonto/sync-all',                 { method: 'POST' }),
 
-  // Qonto — legacy / shared
-  getQontoConfig:    ()       => request('/qonto/config'),
-  saveQontoConfig:   (data)   => request('/qonto/config',   { method: 'POST', body: data }),
-  getQontoAccounts:  ()       => request('/qonto/accounts'),
-  getQontoMappings:  ()       => request('/qonto/mappings'),
-  saveQontoMappings: (data)   => request('/qonto/mappings', { method: 'PUT',  body: data }),
-  runQontoSync:      ()       => request('/qonto/sync',     { method: 'POST' }),
+  // Shine — multi-account CRUD
+  getShineConfigs:        ()         => request('/shine/configs'),
+  createShineConfig:      (data)     => request('/shine/configs',                  { method: 'POST',   body: data }),
+  updateShineConfig:      (id, data) => request(`/shine/configs/${id}`,            { method: 'PUT',    body: data }),
+  deleteShineConfig:      (id)       => request(`/shine/configs/${id}`,            { method: 'DELETE' }),
+  getShineBankAccounts:   (id)       => request(`/shine/configs/${id}/bank-accounts`),
+  syncShineAccount:       (id)       => request(`/shine/configs/${id}/sync`,       { method: 'POST' }),
+  syncAllShine:           ()         => request('/shine/sync-all',                 { method: 'POST' }),
+  getShineSyncLog:        ()         => request('/shine/sync/log'),
+  resetShineData:         ()         => request('/shine/reset',                    { method: 'POST' }),
+
+  // Qonto — sync log & reset (utilisés dans Integrations)
   getQontoSyncLog:   ()       => request('/qonto/sync/log'),
   resetQontoData:    ()       => request('/qonto/reset',    { method: 'POST' }),
+
+  // IA
+  getAIConfig:    ()         => request('/ai/config'),
+  saveAIConfig:   (data)     => request('/ai/config', { method: 'POST',   body: data }),
+  deleteAIConfig: ()         => request('/ai/config', { method: 'DELETE' }),
+  aiChat:         (messages) => request('/ai/chat',   { method: 'POST',   body: { messages } }),
 }
 
 export function formatEur(amount) {

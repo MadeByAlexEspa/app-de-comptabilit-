@@ -201,6 +201,81 @@
   color: #9ca3af;
 }
 
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+
+.filterBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.filterInput {
+  padding: 7px 12px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 13px;
+  color: #111827;
+  background: #fff;
+  font-family: inherit;
+  min-width: 160px;
+  transition: border-color 0.15s;
+}
+
+.filterInput:focus {
+  outline: none;
+  border-color: #1a56db;
+}
+
+.filterSelect {
+  padding: 7px 10px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 13px;
+  color: #111827;
+  background: #fff;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.filterSelect:focus {
+  outline: none;
+  border-color: #1a56db;
+}
+
+.btnClearFilters {
+  padding: 7px 14px;
+  background: transparent;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 7px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btnClearFilters:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+  color: #374151;
+}
+
+.emptyCell {
+  text-align: center;
+  padding: 20px !important;
+  color: #9ca3af;
+  font-size: 13px;
+  font-style: italic;
+}
+
 /* Sections */
 .section {
   display: flex;
@@ -381,51 +456,41 @@
 
 /* ── Inline editing ───────────────────────────────────────────────────────── */
 
+.tdEditing {
+  padding: 0 !important;
+}
+
 .editableCell {
-  cursor: pointer;
-  position: relative;
+  cursor: text;
+  transition: background 0.1s;
 }
 
 .editableCell:hover {
   background: #eff6ff !important;
-  color: #1a56db;
-}
-
-.editableCell::after {
-  content: ' ✎';
-  font-size: 10px;
-  color: #9ca3af;
-  opacity: 0;
-  transition: opacity 0.1s;
-}
-
-.editableCell:hover::after {
-  opacity: 1;
-}
-
-.editInput {
-  width: 90px;
-  padding: 3px 6px;
-  border: 1.5px solid #1a56db;
+  outline: 1px dashed #93c5fd;
   border-radius: 4px;
-  font-size: 13px;
-  font-family: inherit;
-  text-align: right;
-  background: #fff;
-  color: #111827;
-  outline: none;
 }
 
+.editInput,
 .editSelect {
-  padding: 3px 6px;
-  border: 1.5px solid #1a56db;
-  border-radius: 4px;
-  font-size: 13px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 0;
+  font-size: 14px;
   font-family: inherit;
-  background: #fff;
   color: #111827;
-  outline: none;
-  cursor: pointer;
+  background: #eff6ff;
+  outline: 2px solid #1a56db;
+  box-shadow: inset 0 0 0 1px #bfdbfe;
+  min-height: 44px;
+  box-sizing: border-box;
+  text-align: right;
+}
+
+.editInput:focus,
+.editSelect:focus {
+  outline: 2px solid #1a56db;
 }
 
 .ttcCell {

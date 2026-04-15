@@ -13,7 +13,7 @@ export function useFetch(url) {
     fetch(url)
       .then(r => { if (!r.ok) throw new Error(r.statusText); return r.json() })
       .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
-      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false) } })
+      .catch(e => { if (!cancelled) { setError(e?.message || 'Erreur inconnue'); setLoading(false) } })
     return () => { cancelled = true }
   }, [url])
 

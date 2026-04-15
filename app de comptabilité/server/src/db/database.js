@@ -190,6 +190,61 @@ try { db.run('ALTER TABLE qonto_sync_log ADD COLUMN account_id INTEGER'); } catc
   }
 }
 
+// ── Schéma Shine ──────────────────────────────────────────────────────────────
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS shine_accounts (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                TEXT NOT NULL DEFAULT 'Compte Shine',
+    access_token        TEXT,
+    shine_account_id    TEXT,
+    iban                TEXT,
+    auto_sync_enabled   INTEGER NOT NULL DEFAULT 0,
+    last_sync_at        TEXT,
+    created_at          TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS shine_category_mapping (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    shine_operation_type  TEXT NOT NULL,
+    side                  TEXT NOT NULL CHECK (side IN ('credit','debit')),
+    pcg_category          TEXT NOT NULL,
+    default_taux_tva      REAL NOT NULL DEFAULT 20,
+    UNIQUE (shine_operation_type, side)
+  );
+
+  CREATE TABLE IF NOT EXISTS shine_imports (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    shine_transaction_id  TEXT NOT NULL UNIQUE,
+    local_type            TEXT NOT NULL CHECK (local_type IN ('facture','depense')),
+    local_id              INTEGER NOT NULL,
+    imported_at           TEXT NOT NULL DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS shine_sync_log (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id  INTEGER,
+    synced_at   TEXT NOT NULL,
+    fetched     INTEGER NOT NULL DEFAULT 0,
+    imported    INTEGER NOT NULL DEFAULT 0,
+    skipped     INTEGER NOT NULL DEFAULT 0,
+    errors      TEXT
+  );
+`);
+
+// ── Schéma IA ─────────────────────────────────────────────────────────────────
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS ai_config (
+    id             INTEGER PRIMARY KEY CHECK (id = 1),
+    provider       TEXT NOT NULL DEFAULT 'anthropic',
+    api_key        TEXT,
+    model          TEXT DEFAULT 'claude-sonnet-4-6',
+    system_prompt  TEXT,
+    updated_at     TEXT DEFAULT (datetime('now'))
+  );
+`);
+
 // ── Migration PCG : mise à jour des catégories existantes vers les comptes PCG ─
 // Factures
 const MIGRATION_FACTURES = [

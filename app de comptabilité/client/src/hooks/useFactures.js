@@ -13,7 +13,7 @@ export function useFactures() {
       const data = await api.getFactures(mois)
       setFactures(data)
     } catch (e) {
-      setError(e.message)
+      setError(e?.message || 'Erreur inconnue')
     } finally {
       setLoading(false)
     }

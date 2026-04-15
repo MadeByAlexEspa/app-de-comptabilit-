@@ -13,7 +13,7 @@ export function useDepenses() {
       const data = await api.getDepenses(mois)
       setDepenses(data)
     } catch (e) {
-      setError(e.message)
+      setError(e?.message || 'Erreur inconnue')
     } finally {
       setLoading(false)
     }

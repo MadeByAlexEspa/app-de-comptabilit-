@@ -422,3 +422,392 @@
   text-align: center;
   padding: 32px 0;
 }
+
+/* ── Main tabs (Banque / IA) ─────────────────────────────────────────────── */
+
+.mainTabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 2px solid #e5e7eb;
+  margin-bottom: 4px;
+}
+
+.mainTab {
+  padding: 10px 24px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -2px;
+  font-size: 15px;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: color 0.15s;
+  font-family: inherit;
+}
+
+.mainTab:hover {
+  color: #374151;
+}
+
+.mainTabActive {
+  color: #1a56db;
+  border-bottom-color: #1a56db;
+  font-weight: 600;
+}
+
+/* ── AI config panel ─────────────────────────────────────────────────────── */
+
+.aiPanel {
+  background: #fff;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 700px;
+  animation: slideDown 0.18s ease;
+}
+
+.aiPanelHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aiPanelTitle {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.aiPanelDesc {
+  font-size: 14px;
+  color: #6b7280;
+  margin: 0;
+}
+
+.aiConfigured {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 20px;
+  padding: 3px 12px;
+  width: fit-content;
+}
+
+/* ── Provider selection cards ────────────────────────────────────────────── */
+
+.providerCards {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.providerCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 20px;
+  border: 2px solid #e5e7eb;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, box-shadow 0.15s;
+  min-width: 100px;
+  background: #fff;
+}
+
+.providerCard:hover {
+  border-color: #9db9f5;
+  box-shadow: 0 2px 8px rgba(26, 86, 219, 0.08);
+}
+
+.providerCardActive {
+  border-color: #1a56db;
+  background: #eff6ff;
+}
+
+.providerLogo {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.5px;
+}
+
+.providerName {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+}
+
+/* ── AI form sections ────────────────────────────────────────────────────── */
+
+.aiForm {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.aiSection {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.aiLabel {
+  font-size: 13px;
+  font-weight: 600;
+  color: #374151;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.aiOptional {
+  font-size: 12px;
+  font-weight: 400;
+  color: #9ca3af;
+}
+
+.aiRow {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.aiField {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 180px;
+}
+
+.aiInput {
+  padding: 10px 14px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: monospace;
+  color: #111827;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+}
+
+.aiInput:focus {
+  outline: none;
+  border-color: #1a56db;
+}
+
+.aiSelect {
+  padding: 10px 14px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+  cursor: pointer;
+  transition: border-color 0.15s;
+}
+
+.aiSelect:focus {
+  outline: none;
+  border-color: #1a56db;
+}
+
+.aiTextarea {
+  padding: 10px 14px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  color: #111827;
+  background: #fff;
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 90px;
+  transition: border-color 0.15s;
+}
+
+.aiTextarea:focus {
+  outline: none;
+  border-color: #1a56db;
+}
+
+/* ── AI form feedback / actions ──────────────────────────────────────────── */
+
+.aiError {
+  font-size: 13px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fca5a5;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.aiSuccess {
+  font-size: 13px;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.aiActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.aiBtnPrimary {
+  padding: 10px 24px;
+  background: #1a56db;
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.aiBtnPrimary:hover:not(:disabled) {
+  background: #1a44b8;
+}
+
+.aiBtnPrimary:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.aiBtnGhost {
+  padding: 10px 20px;
+  background: transparent;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.aiBtnGhost:hover {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+}
+
+.aiBtnDanger {
+  padding: 7px 16px;
+  background: #dc2626;
+  border: none;
+  border-radius: 7px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+
+.aiBtnDanger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.aiBtnDanger:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ── Connected state card ────────────────────────────────────────────────── */
+
+.aiConnectionCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 20px 24px;
+  background: #f9fafb;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  transition: border-color 0.2s;
+}
+
+.aiConnectionLeft {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.aiConnectionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.aiConnectionProvider {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+}
+
+.aiConnectionModel {
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.aiConnectionBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1.5px solid #bbf7d0;
+  border-radius: 20px;
+  padding: 4px 14px;
+  white-space: nowrap;
+}
+
+.aiConnectionBadge::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #16a34a;
+}
+
+.aiDeleteConfirm {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #374151;
+  flex-wrap: wrap;
+}

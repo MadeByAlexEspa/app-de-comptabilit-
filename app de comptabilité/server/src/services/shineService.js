@@ -1,0 +1,273 @@
+/**
+ * Shine API v2 integration service.
+ * Auth: Authorization: Bearer {access_token}
+ * Docs: https://developers.shine.fr/
+ */
+const db = require('../db/database');
+
+const SHINE_BASE = 'https://api.shine.fr/v2';
+
+// ── Fallback PCG categories (new tiers with no history) ───────────────────────
+
+const DEFAULT_CREDIT_CAT = '706 – Prestations de services';
+const DEFAULT_DEBIT_CAT  = '604 – Achats de prestations de services';
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
+// Look up the most recent PCG category used for this tiers name.
+// Searches factures (for credits) or dépenses (for debits) case-insensitively.
+function lookupTiersCategorie(tiers, side) {
+  const t = (tiers || '').trim();
+  if (!t) return side === 'credit' ? DEFAULT_CREDIT_CAT : DEFAULT_DEBIT_CAT;
+
+  if (side === 'credit') {
+    const row = db.get(
+      'SELECT categorie FROM factures WHERE LOWER(client) = LOWER(?) ORDER BY date DESC LIMIT 1',
+      [t]
+    );
+    return row?.categorie || DEFAULT_CREDIT_CAT;
+  } else {
+    const row = db.get(
+      'SELECT categorie FROM depenses WHERE LOWER(fournisseur) = LOWER(?) ORDER BY date DESC LIMIT 1',
+      [t]
+    );
+    return row?.categorie || DEFAULT_DEBIT_CAT;
+  }
+}
+
+// ── Multi-account CRUD ────────────────────────────────────────────────────────
+
+function getAllAccounts() {
+  return db.prepare(
+    'SELECT id, name, shine_account_id, iban, auto_sync_enabled, last_sync_at, created_at FROM shine_accounts ORDER BY created_at'
+  ).all();
+}
+
+function getAccount(id) {
+  return db.get('SELECT * FROM shine_accounts WHERE id = ?', [id]);
+}
+
+function createAccount(data) {
+  const result = db.prepare(
+    'INSERT INTO shine_accounts (name, access_token, shine_account_id, iban, auto_sync_enabled) VALUES (@name, @access_token, @shine_account_id, @iban, @auto_sync_enabled)'
+  ).run({
+    name:             data.name || 'Compte Shine',
+    access_token:     data.access_token,
+    shine_account_id: data.shine_account_id || null,
+    iban:             data.iban || null,
+    auto_sync_enabled: data.auto_sync_enabled ? 1 : 0,
+  });
+  return result.lastInsertRowid;
+}
+
+function updateAccount(id, data) {
+  const existing = getAccount(id);
+  if (!existing) throw new Error('Compte introuvable');
+  // Preserve token if placeholder submitted
+  const newToken = data.access_token?.startsWith('\u2022') ? existing.access_token : data.access_token;
+  db.run(
+    'UPDATE shine_accounts SET name=?, access_token=?, shine_account_id=?, iban=?, auto_sync_enabled=? WHERE id=?',
+    [
+      data.name             ?? existing.name,
+      newToken              ?? existing.access_token,
+      data.shine_account_id ?? existing.shine_account_id,
+      data.iban             ?? existing.iban,
+      data.auto_sync_enabled ? 1 : 0,
+      id,
+    ]
+  );
+}
+
+function deleteAccount(id) {
+  db.run('DELETE FROM shine_accounts WHERE id = ?', [id]);
+}
+
+// ── Shine API helpers ─────────────────────────────────────────────────────────
+
+async function shineFetch(path, accessToken) {
+  const res = await fetch(`${SHINE_BASE}${path}`, {
+    headers: { Authorization: `Bearer ${accessToken}` },
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    const msg  = body.message || body.error || `HTTP ${res.status}`;
+    throw new Error(`Shine API : ${msg}`);
+  }
+  return res.json();
+}
+
+async function getBankAccounts(accessToken) {
+  return shineFetch('/accounts', accessToken);
+}
+
+async function fetchTransactions(accessToken, shineAccountId, { after, cursor } = {}) {
+  let url = `/accounts/${encodeURIComponent(shineAccountId)}/transactions?limit=100`;
+  if (after)  url += `&from=${encodeURIComponent(after)}`;
+  if (cursor) url += `&cursor=${encodeURIComponent(cursor)}`;
+  return shineFetch(url, accessToken);
+}
+
+function isAlreadyImported(shineId) {
+  return !!db.get('SELECT id FROM shine_imports WHERE shine_transaction_id = ?', [shineId]);
+}
+
+function recordImport(shineId, type, localId) {
+  db.run(
+    'INSERT INTO shine_imports (shine_transaction_id, local_type, local_id) VALUES (?, ?, ?)',
+    [shineId, type, localId]
+  );
+}
+
+function nextShineNumero() {
+  const row = db.get(
+    "SELECT MAX(CAST(SUBSTR(numero, 5) AS INTEGER)) AS n FROM factures WHERE numero LIKE 'SHN-%'"
+  );
+  return `SHN-${String((row?.n || 0) + 1).padStart(5, '0')}`;
+}
+
+function importTransaction(tx) {
+  // Shine: amount in cents, positive = credit, negative = debit
+  const amountCents = typeof tx.amount === 'number' ? Math.abs(tx.amount) : 0;
+  const side        = (tx.amount ?? 0) >= 0 ? 'credit' : 'debit';
+
+  // TVA: no tax data available from the bank — default to 0%
+  const montantTtc = round2(amountCents / 100);
+  const taux       = 0;
+  const montantHt  = montantTtc;
+  const montantTva = 0;
+
+  const date  = (tx.executedAt || tx.createdAt || '').slice(0, 10);
+  const label = (tx.label || tx.counterpartyName || '').trim()
+             || (side === 'credit' ? 'Virement reçu' : 'Paiement');
+
+  // Auto-assign category from tiers history, else use PCG default
+  const categorie = lookupTiersCategorie(label, side);
+
+  if (side === 'credit') {
+    const stmt = db.prepare(`
+      INSERT INTO factures (numero, date, client, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
+      VALUES (@numero, @date, @client, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
+    `);
+    const result = stmt.run({
+      numero:      nextShineNumero(),
+      date,
+      client:      label,
+      description: label,
+      montant_ht:  montantHt,
+      taux_tva:    taux,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      categorie,
+      statut:      'payee',
+    });
+    recordImport(tx.id, 'facture', result.lastInsertRowid);
+  } else {
+    const stmt = db.prepare(`
+      INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
+      VALUES (@date, @fournisseur, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
+    `);
+    const result = stmt.run({
+      date,
+      fournisseur: label,
+      description: label,
+      montant_ht:  montantHt,
+      taux_tva:    taux,
+      montant_tva: montantTva,
+      montant_ttc: montantTtc,
+      categorie,
+      statut:      'payee',
+    });
+    recordImport(tx.id, 'depense', result.lastInsertRowid);
+  }
+}
+
+// ── Sync ──────────────────────────────────────────────────────────────────────
+
+async function runSync(account) {
+  const { id: accountId, access_token, shine_account_id, last_sync_at } = account;
+
+  let fetched  = 0;
+  let imported = 0;
+  let skipped  = 0;
+  const errors = [];
+
+  try {
+    let cursor = undefined;
+    while (true) {
+      const data = await fetchTransactions(access_token, shine_account_id, {
+        after:  last_sync_at ? last_sync_at.slice(0, 10) : undefined,
+        cursor,
+      });
+
+      const transactions = data.transactions || data.items || [];
+      fetched += transactions.length;
+
+      for (const tx of transactions) {
+        if (isAlreadyImported(tx.id)) {
+          skipped++;
+          continue;
+        }
+        try {
+          importTransaction(tx);
+          imported++;
+        } catch (e) {
+          errors.push(`[${tx.id}] ${e.message}`);
+        }
+      }
+
+      const meta = data.meta || data.pagination || {};
+      cursor = meta.cursor || meta.nextCursor || null;
+      if (!cursor || transactions.length === 0) break;
+    }
+  } catch (e) {
+    errors.push(e.message);
+  }
+
+  const now = new Date().toISOString();
+
+  db.run('UPDATE shine_accounts SET last_sync_at = ? WHERE id = ?', [now, accountId]);
+  db.run(
+    'INSERT INTO shine_sync_log (account_id, synced_at, fetched, imported, skipped, errors) VALUES (?, ?, ?, ?, ?, ?)',
+    [accountId, now, fetched, imported, skipped, errors.length ? errors.join('\n') : null]
+  );
+
+  return { synced_at: now, fetched, imported, skipped, errors };
+}
+
+// ── Auto-sync ─────────────────────────────────────────────────────────────────
+
+const MS_24H = 24 * 60 * 60 * 1000;
+
+function scheduleAutoSync() {
+  setInterval(async () => {
+    const accounts = getAllAccounts();
+    for (const acct of accounts) {
+      if (!acct.auto_sync_enabled || !acct.shine_account_id) continue;
+      const lastSync = acct.last_sync_at ? new Date(acct.last_sync_at).getTime() : 0;
+      if (Date.now() - lastSync < MS_24H) continue;
+      console.log(`[shine] Auto-sync démarré pour "${acct.name}"…`);
+      try {
+        const full = getAccount(acct.id);
+        const result = await runSync(full);
+        console.log(`[shine] "${acct.name}" : ${result.imported} importées, ${result.skipped} ignorées`);
+      } catch (e) {
+        console.error(`[shine] "${acct.name}" auto-sync échoué :`, e.message);
+      }
+    }
+  }, 60 * 60 * 1000);
+}
+
+module.exports = {
+  getAllAccounts,
+  getAccount,
+  createAccount,
+  updateAccount,
+  deleteAccount,
+  getBankAccounts,
+  runSync,
+  scheduleAutoSync,
+};

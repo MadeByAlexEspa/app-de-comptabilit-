@@ -9,9 +9,6 @@ const {
   getConfig,
   getOrganization,
   runSync,
-  PCG_PRODUITS,
-  PCG_CHARGES,
-  DEFAULT_MAPPINGS,
 } = require('../services/qontoService');
 
 const router = Router();
@@ -170,12 +167,6 @@ router.post('/config', (req, res, next) => {
         'INSERT INTO qonto_config (id, organization_slug, secret_key, iban, auto_sync_enabled) VALUES (1,?,?,?,?)',
         [organization_slug, secret_key, iban ?? null, autoSync]
       );
-      for (const m of DEFAULT_MAPPINGS) {
-        db.run(
-          'INSERT OR IGNORE INTO qonto_category_mapping (qonto_operation_type, side, pcg_category, default_taux_tva) VALUES (?,?,?,?)',
-          [m.qonto_operation_type, m.side, m.pcg_category, m.default_taux_tva]
-        );
-      }
     }
 
     res.json({ ok: true });
@@ -197,39 +188,6 @@ router.get('/accounts', async (req, res, next) => {
       currency: a.currency,
     }));
     res.json({ accounts });
-  } catch (e) { next(e); }
-});
-
-// ── Mappings ──────────────────────────────────────────────────────────────────
-
-// GET /api/qonto/mappings
-router.get('/mappings', (req, res, next) => {
-  try {
-    const mappings = db
-      .prepare('SELECT * FROM qonto_category_mapping ORDER BY side DESC, qonto_operation_type')
-      .all();
-    res.json({ mappings, pcg_produits: PCG_PRODUITS, pcg_charges: PCG_CHARGES });
-  } catch (e) { next(e); }
-});
-
-// PUT /api/qonto/mappings
-router.put('/mappings', (req, res, next) => {
-  try {
-    const { mappings } = req.body;
-    if (!Array.isArray(mappings)) {
-      return res.status(400).json({ error: 'mappings doit être un tableau' });
-    }
-    for (const m of mappings) {
-      db.run(
-        `INSERT INTO qonto_category_mapping (qonto_operation_type, side, pcg_category, default_taux_tva)
-         VALUES (?,?,?,?)
-         ON CONFLICT(qonto_operation_type, side) DO UPDATE SET
-           pcg_category = excluded.pcg_category,
-           default_taux_tva = excluded.default_taux_tva`,
-        [m.qonto_operation_type, m.side, m.pcg_category, m.default_taux_tva ?? 20]
-      );
-    }
-    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 

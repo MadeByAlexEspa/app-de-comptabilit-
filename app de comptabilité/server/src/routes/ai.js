@@ -1,0 +1,51 @@
+const { Router } = require('express');
+const { PROVIDERS, getConfig, saveConfig, deleteConfig, chat } = require('../services/aiService');
+
+const router = Router();
+
+// GET /api/ai/config
+router.get('/config', (req, res, next) => {
+  try {
+    const config = getConfig();
+    if (!config) return res.json({ configured: false, providers: PROVIDERS });
+    const { api_key, ...safe } = config;
+    res.json({
+      ...safe,
+      configured:    !!api_key,
+      api_key_masked: api_key ? '\u2022\u2022\u2022\u2022' + api_key.slice(-4) : null,
+      providers:     PROVIDERS,
+    });
+  } catch (e) { next(e); }
+});
+
+// POST /api/ai/config
+router.post('/config', (req, res, next) => {
+  try {
+    const { provider, api_key, model, system_prompt } = req.body;
+    if (!provider || !api_key) return res.status(400).json({ error: 'provider et api_key sont requis' });
+    saveConfig({ provider, api_key, model, system_prompt });
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// DELETE /api/ai/config
+router.delete('/config', (req, res, next) => {
+  try {
+    deleteConfig();
+    res.json({ ok: true });
+  } catch (e) { next(e); }
+});
+
+// POST /api/ai/chat
+router.post('/chat', async (req, res, next) => {
+  try {
+    const { messages } = req.body;
+    if (!Array.isArray(messages) || !messages.length) {
+      return res.status(400).json({ error: 'messages est requis' });
+    }
+    const reply = await chat(messages);
+    res.json({ reply });
+  } catch (e) { next(e); }
+});
+
+module.exports = router;

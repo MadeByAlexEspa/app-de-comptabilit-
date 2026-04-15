@@ -108,8 +108,6 @@ const COLUMNS_TOUS = [
 ]
 
 const COLUMNS_ENTREES = [
-  { key: 'numero',      label: 'Numéro',
-    editable: { type: 'text' } },
   { key: 'date',        label: 'Date',        render: v => formatDate(v),
     editable: { type: 'date' } },
   { key: 'client',      label: 'Client',
@@ -216,6 +214,13 @@ export default function Transactions() {
   const [pendingCatChange, setPendingCatChange]   = useState(null)
   // pendingCatChange: { row, newCategory, matchingRows, isEntree }
 
+  // ── Filters ────────────────────────────────────────────────────────────────
+  const [filterTiers,     setFilterTiers]     = useState('')
+  const [filterDateFrom,  setFilterDateFrom]  = useState('')
+  const [filterDateTo,    setFilterDateTo]    = useState('')
+  const [filterCategorie, setFilterCategorie] = useState('')
+  const [filterStatut,    setFilterStatut]    = useState('')
+
   const {
     factures, loading: loadingF, error: errorF,
     fetchFactures, createFacture, updateFacture, deleteFacture,
@@ -229,11 +234,24 @@ export default function Transactions() {
   useEffect(() => { fetchFactures() }, [fetchFactures])
   useEffect(() => { fetchDepenses() }, [fetchDepenses])
 
-  // Reset page + selection when tab changes
+  // Reset page + selection + filters when tab changes
   function switchTab(tab) {
     setActiveTab(tab)
     setPage(1)
     setSelectedIds(new Set())
+    setFilterTiers('')
+    setFilterDateFrom('')
+    setFilterDateTo('')
+    setFilterCategorie('')
+    setFilterStatut('')
+  }
+
+  function clearFilters() {
+    setFilterTiers('')
+    setFilterDateFrom('')
+    setFilterDateTo('')
+    setFilterCategorie('')
+    setFilterStatut('')
   }
 
   const allRows = useMemo(() => {
@@ -257,9 +275,31 @@ export default function Transactions() {
   const fullData = isTous ? allRows : isEntrees ? factures : depenses
   const columns  = isTous ? COLUMNS_TOUS : isEntrees ? COLUMNS_ENTREES : COLUMNS_SORTIES
 
-  const totalPages = Math.max(1, Math.ceil(fullData.length / PAGE_SIZE))
+  const hasFilters = !!(filterTiers || filterDateFrom || filterDateTo || filterCategorie || filterStatut)
+
+  const categorieOptions = useMemo(() =>
+    [...new Set(fullData.map(r => r.categorie).filter(Boolean))].sort()
+  , [fullData])
+
+  const filteredData = useMemo(() => {
+    let rows = fullData
+    if (filterTiers) {
+      const q = filterTiers.toLowerCase()
+      rows = rows.filter(r => (r.client || r.fournisseur || '').toLowerCase().includes(q))
+    }
+    if (filterDateFrom) rows = rows.filter(r => r.date >= filterDateFrom)
+    if (filterDateTo)   rows = rows.filter(r => r.date <= filterDateTo)
+    if (filterCategorie) rows = rows.filter(r => r.categorie === filterCategorie)
+    if (filterStatut)    rows = rows.filter(r => r.statut === filterStatut)
+    return rows
+  }, [fullData, filterTiers, filterDateFrom, filterDateTo, filterCategorie, filterStatut])
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1) }, [filterTiers, filterDateFrom, filterDateTo, filterCategorie, filterStatut])
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE))
   const safePage   = Math.min(page, totalPages)
-  const pageData   = fullData.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageData   = filteredData.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
   // ── Propagation de catégorie par tiers ────────────────────────────────────
 
@@ -420,7 +460,7 @@ export default function Transactions() {
   }
 
   const deleteLabel = (confirmDelete?._type === 'entree' || isEntrees)
-    ? `l'entrée ${confirmDelete?.numero} — ${confirmDelete?.client}`
+    ? `l'entrée de ${confirmDelete?.client} (${formatEur(confirmDelete?.montant_ttc)})`
     : `la sortie chez ${confirmDelete?.fournisseur} (${formatEur(confirmDelete?.montant_ttc)})`
 
   const createLabel = isEntrees ? '+ Nouvelle entrée' : isSorties ? '+ Nouvelle sortie' : null
@@ -465,6 +505,53 @@ export default function Transactions() {
         </button>
       </div>
 
+      <div className={styles.filterBar}>
+        <input
+          className={styles.filterInput}
+          type="text"
+          placeholder="Rechercher un tiers…"
+          value={filterTiers}
+          onChange={e => setFilterTiers(e.target.value)}
+        />
+        <input
+          className={styles.filterInput}
+          type="date"
+          value={filterDateFrom}
+          onChange={e => setFilterDateFrom(e.target.value)}
+          title="Date de début"
+        />
+        <span className={styles.filterSep}>→</span>
+        <input
+          className={styles.filterInput}
+          type="date"
+          value={filterDateTo}
+          onChange={e => setFilterDateTo(e.target.value)}
+          title="Date de fin"
+        />
+        <select
+          className={styles.filterSelect}
+          value={filterCategorie}
+          onChange={e => setFilterCategorie(e.target.value)}
+        >
+          <option value="">Toutes catégories</option>
+          {categorieOptions.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select
+          className={styles.filterSelect}
+          value={filterStatut}
+          onChange={e => setFilterStatut(e.target.value)}
+        >
+          <option value="">Tous statuts</option>
+          <option value="payee">Payée</option>
+          <option value="en_attente">En attente</option>
+        </select>
+        {hasFilters && (
+          <button className={styles.btnClearFilters} onClick={clearFilters}>
+            × Effacer
+          </button>
+        )}
+      </div>
+
       {actionError && <div className={styles.error}>⚠️ {actionError}</div>}
 
       {selectedIds.size > 0 && (
@@ -500,9 +587,11 @@ export default function Transactions() {
         <>
           <div className={styles.tableInfo}>
             <span className={styles.tableCount}>
-              {fullData.length === 0
-                ? 'Aucune transaction'
-                : `${fullData.length} transaction${fullData.length > 1 ? 's' : ''} — page ${safePage} / ${totalPages}`}
+              {filteredData.length === 0
+                ? (hasFilters ? 'Aucun résultat' : 'Aucune transaction')
+                : hasFilters
+                  ? `${filteredData.length} sur ${fullData.length} — page ${safePage} / ${totalPages}`
+                  : `${fullData.length} transaction${fullData.length > 1 ? 's' : ''} — page ${safePage} / ${totalPages}`}
             </span>
           </div>
 

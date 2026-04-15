@@ -12,7 +12,7 @@ export function useDashboard() {
     setError(null)
     api.getDashboard()
       .then(d => { if (!cancelled) { setData(d); setLoading(false) } })
-      .catch(e => { if (!cancelled) { setError(e.message); setLoading(false) } })
+      .catch(e => { if (!cancelled) { setError(e?.message || 'Erreur inconnue'); setLoading(false) } })
     return () => { cancelled = true }
   }, [])
 

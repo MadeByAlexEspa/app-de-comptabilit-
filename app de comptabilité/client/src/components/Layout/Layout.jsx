@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
+import AIChatPanel from '../AIChatPanel/AIChatPanel.jsx'
 import styles from './Layout.module.css'
 
 const navItems = [
@@ -9,6 +11,8 @@ const navItems = [
 ]
 
 export default function Layout({ children }) {
+  const [chatOpen, setChatOpen] = useState(false)
+
   return (
     <div className={styles.wrapper}>
       <aside className={styles.sidebar}>
@@ -32,6 +36,13 @@ export default function Layout({ children }) {
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
+          <button
+            className={`${styles.navItem} ${styles.aiBtn} ${chatOpen ? styles.aiBtnActive : ''}`}
+            onClick={() => setChatOpen(v => !v)}
+          >
+            <span className={styles.navIcon}>✦</span>
+            <span className={styles.navLabel}>ComptIA</span>
+          </button>
           <NavLink
             to="/integrations"
             className={({ isActive }) =>
@@ -44,11 +55,12 @@ export default function Layout({ children }) {
           <span className={styles.footerText}>v1.0.0</span>
         </div>
       </aside>
-      <main className={styles.main}>
+      <main className={`${styles.main} ${chatOpen ? styles.mainShifted : ''}`}>
         <div className={styles.content}>
           {children}
         </div>
       </main>
+      <AIChatPanel open={chatOpen} onClose={() => setChatOpen(false)} />
     </div>
   )
 }
