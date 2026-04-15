@@ -100,7 +100,8 @@ const COLUMNS_TOUS = [
   { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
-  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong> },
+  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',   label: 'Catégorie',
     editable: { type: 'select', options: row => row._type === 'entree' ? CAT_ENTREES_OPTIONS : CAT_SORTIES_OPTIONS } },
   { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
@@ -115,7 +116,8 @@ const COLUMNS_ENTREES = [
   { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
-  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong> },
+  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',   label: 'Catégorie',
     editable: { type: 'select', options: CAT_ENTREES_OPTIONS } },
   { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
@@ -130,7 +132,8 @@ const COLUMNS_SORTIES = [
   { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
-  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong> },
+  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',   label: 'Catégorie',
     editable: { type: 'select', options: CAT_SORTIES_OPTIONS } },
   { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
@@ -404,8 +407,18 @@ export default function Transactions() {
       return
     }
     try {
-      if (isEntree) await updateFacture(row.id, { [field]: newValue })
-      else          await updateDepense(row.id, { [field]: newValue })
+      let patch
+      if (field === 'montant_ttc') {
+        const ttc  = Math.round(newValue * 100) / 100
+        const taux = row.taux_tva ?? 0
+        const ht   = Math.round(ttc / (1 + taux / 100) * 100) / 100
+        const tva  = Math.round((ttc - ht) * 100) / 100
+        patch = { montant_ttc: ttc, montant_ht: ht, montant_tva: tva }
+      } else {
+        patch = { [field]: newValue }
+      }
+      if (isEntree) await updateFacture(row.id, patch)
+      else          await updateDepense(row.id, patch)
     } catch (e) {
       setActionError(e.message)
     }
