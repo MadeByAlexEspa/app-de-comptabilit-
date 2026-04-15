@@ -310,6 +310,48 @@
   color: #b91c1c !important;
 }
 
+.matchList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  overflow: hidden;
+  font-size: 13px;
+}
+
+.matchItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 12px;
+  border-bottom: 1px solid #f3f4f6;
+  color: #374151;
+  gap: 8px;
+}
+
+.matchItem:last-child {
+  border-bottom: none;
+}
+
+.matchCat {
+  color: #6b7280;
+  font-size: 11px;
+  text-align: right;
+  flex-shrink: 0;
+  max-width: 55%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.matchMore {
+  padding: 6px 12px;
+  color: #9ca3af;
+  font-size: 12px;
+  font-style: italic;
+}
+
 .confirmActions {
   display: flex;
   gap: 10px;

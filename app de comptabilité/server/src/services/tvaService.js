@@ -20,7 +20,6 @@ function ventilerParTaux(rows) {
     par_taux[t].tva     = round2(par_taux[t].tva     + row.montant_tva);
   }
 
-  // Supprimer les taux à zéro pour alléger la réponse (sauf taux 0 s'il y a des lignes)
   const result = {};
   for (const [t, data] of Object.entries(par_taux)) {
     if (data.base_ht !== 0 || data.tva !== 0 || Number(t) === 0) {
@@ -31,24 +30,19 @@ function ventilerParTaux(rows) {
 }
 
 /**
- * Déclaration TVA mensuelle conforme PCG / CA3 (art. 287 CGI).
+ * Déclaration TVA sur une plage de dates (conforme CA3 — art. 287 CGI).
  *
- * Structure de retour calquée sur le formulaire CA3 :
- *   - collectée : TVA sur ventes ventilée par taux (lignes A1/A2/A3/A4)
- *   - déductible : TVA récupérable sur achats (ligne 20)
- *   - tva_a_reverser : solde net (ligne 28)
- *   - credit_tva : si solde négatif, montant du crédit (ligne 26)
- *
- * @param {string} mois - "YYYY-MM"
+ * @param {string} debut - "YYYY-MM-DD"
+ * @param {string} fin   - "YYYY-MM-DD"
  */
-function getTvaReport(mois) {
+function getTvaReportRange(debut, fin) {
   const detailFactures = db
-    .prepare(`SELECT * FROM factures WHERE strftime('%Y-%m', date) = ? ORDER BY date`)
-    .all(mois);
+    .prepare(`SELECT * FROM factures WHERE date >= ? AND date <= ? ORDER BY date`)
+    .all(debut, fin);
 
   const detailDepenses = db
-    .prepare(`SELECT * FROM depenses WHERE strftime('%Y-%m', date) = ? ORDER BY date`)
-    .all(mois);
+    .prepare(`SELECT * FROM depenses WHERE date >= ? AND date <= ? ORDER BY date`)
+    .all(debut, fin);
 
   const collecteParTaux   = ventilerParTaux(detailFactures);
   const deductibleParTaux = ventilerParTaux(detailDepenses);
@@ -58,7 +52,8 @@ function getTvaReport(mois) {
   const solde           = round2(totalCollectee - totalDeductible);
 
   return {
-    mois,
+    debut,
+    fin,
     collectee: {
       par_taux:      collecteParTaux,
       total_base_ht: round2(detailFactures.reduce((s, r) => s + r.montant_ht, 0)),
@@ -76,4 +71,16 @@ function getTvaReport(mois) {
   };
 }
 
-module.exports = { getTvaReport };
+/**
+ * Rétrocompatibilité : accepte un mois "YYYY-MM".
+ * @param {string} mois - "YYYY-MM"
+ */
+function getTvaReport(mois) {
+  const [y, m] = mois.split('-');
+  const debut  = `${y}-${m}-01`;
+  const lastDay = new Date(Number(y), Number(m), 0).getDate();
+  const fin    = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
+  return { ...getTvaReportRange(debut, fin), mois };
+}
+
+module.exports = { getTvaReport, getTvaReportRange };

@@ -9,7 +9,8 @@ function round2(n) {
 // Immobilisations incorporelles (Classe 2)
 const CAT_IMMO_INCORP = [
   '201 \u2013 Frais d\u2019\u00e9tablissement',
-  '205 \u2013 Concessions, brevets, licences, marques',
+  '2051 \u2013 Concessions, brevets, licences, marques',
+  '2052 \u2013 Logiciels (d\u00e9veloppement interne)',
 ];
 // Immobilisations corporelles (Classe 2)
 const CAT_IMMO_CORP = [
@@ -32,38 +33,54 @@ const CAT_CC_ASSOC_REMBOURS = '455 \u2013 Remboursement compte courant associ\u0
 
 // Catégories P&L (pour le calcul du résultat d'exercice, hors BS)
 const CAT_PNL_PRODUITS = [
+  // Chiffre d'affaires (Classe 7)
   '706 \u2013 Prestations de services',
   '701 \u2013 Ventes de produits finis',
   '707 \u2013 Ventes de marchandises',
   '708 \u2013 Produits des activit\u00e9s annexes',
+  // Autres produits d'exploitation
   '74 \u2013 Subventions d\u2019exploitation',
   '75 \u2013 Autres produits de gestion courante',
+  // 409 : avoir fournisseur reçu (réduit le coût net des achats)
+  '409 \u2013 Avoirs fournisseurs re\u00e7us',
+  // Produits financiers & exceptionnels
   '76 \u2013 Produits financiers',
   '77 \u2013 Produits exceptionnels',
 ];
 const CAT_PNL_CHARGES = [
+  // Achats consommés (Classe 6)
   '604 \u2013 Achats de prestations de services',
   '606 \u2013 Fournitures et petits \u00e9quipements',
   '607 \u2013 Achats de marchandises',
+  // Charges externes (Classe 6)
   '611 \u2013 Sous-traitance g\u00e9n\u00e9rale',
   '613 \u2013 Locations & charges locatives',
   '615 \u2013 Entretien et r\u00e9parations',
   '616 \u2013 Primes d\u2019assurance',
+  '618 \u2013 Abonnements & frais informatiques',
   '622 \u2013 Honoraires et r\u00e9mun\u00e9rations d\u2019interm\u00e9diaires',
   '623 \u2013 Publicit\u00e9 & communication',
   '624 \u2013 Transports de biens',
   '625 \u2013 D\u00e9placements, missions & r\u00e9ceptions',
   '626 \u2013 Frais postaux & t\u00e9l\u00e9communications',
   '627 \u2013 Services bancaires & assimil\u00e9s',
+  // Impôts et taxes (Classe 6)
   '631 \u2013 Imp\u00f4ts, taxes et versements assimil\u00e9s sur r\u00e9mun\u00e9rations',
   '635 \u2013 Autres imp\u00f4ts, taxes et versements assimil\u00e9s',
+  // Charges de personnel (Classe 6)
   '641 \u2013 R\u00e9mun\u00e9rations du personnel',
   '645 \u2013 Charges sociales & cotisations',
+  '421 \u2013 Notes de frais du personnel',
+  // Dotations aux amortissements (Classe 6)
   '681 \u2013 Dotations aux amortissements d\u2019exploitation',
+  // Charges financières & exceptionnelles
   '661 \u2013 Charges d\u2019int\u00e9r\u00eats',
   '668 \u2013 Autres charges financi\u00e8res',
   '671 \u2013 Charges exceptionnelles sur op\u00e9rations de gestion',
   '675 \u2013 Valeurs comptables des \u00e9l\u00e9ments c\u00e9d\u00e9s',
+  // 709 : avoirs / remboursements clients (réduit le CA net)
+  '709 \u2013 Avoirs & remboursements clients',
+  // Impôt sur les bénéfices
   '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
 ];
 
@@ -107,11 +124,11 @@ function sumCatSingle(table, categorie, dateCond, dateParams) {
  *   Dettes financières : emprunts nets (164), C/C associés nets (455)
  *   Dettes d'exploitation : dettes four. (40), TVA à décaisser (44551), découvert (564)
  *
- * @param {string} date - "YYYY-MM-DD"
+ * @param {string} date  - date d'arrêté "YYYY-MM-DD"
+ * @param {string} debut - début de l'exercice "YYYY-MM-DD" (défaut : 1er janvier de l'année de date)
  */
-function getBilanReport(date) {
-  const annee = date.slice(0, 4);
-  const debutExercice = `${annee}-01-01`;
+function getBilanReport(date, debut) {
+  const debutExercice = debut || `${date.slice(0, 4)}-01-01`;
 
   // ── ACTIF IMMOBILISÉ ─────────────────────────────────────────────────────
 

@@ -89,13 +89,17 @@
 }
 
 .sidebarFooter {
-  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 0 16px;
   border-top: 1px solid #1f2937;
 }
 
 .footerText {
   font-size: 11px;
   color: #4b5563;
+  padding: 0 20px;
 }
 
 .main {
@@ -108,9 +112,27 @@
 
 .content {
   flex: 1;
-  padding: 32px;
-  max-width: 1200px;
+  padding: 32px 40px;
   width: 100%;
+}
+
+@media (min-width: 1600px) {
+  .sidebar {
+    width: 260px;
+    min-width: 260px;
+  }
+  .main {
+    margin-left: 260px;
+  }
+  .content {
+    padding: 36px 56px;
+  }
+}
+
+@media (min-width: 2000px) {
+  .content {
+    padding: 40px 80px;
+  }
 }
 
 @media (max-width: 768px) {

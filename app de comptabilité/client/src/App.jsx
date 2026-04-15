@@ -3,9 +3,8 @@ import Layout from './components/Layout/Layout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Transactions from './pages/Transactions.jsx'
 import TVA from './pages/TVA.jsx'
-import PnL from './pages/PnL.jsx'
-import Bilan from './pages/Bilan.jsx'
-import Qonto from './pages/Qonto.jsx'
+import Exercice from './pages/Exercice.jsx'
+import Integrations from './pages/Integrations.jsx'
 
 export default function App() {
   return (
@@ -16,9 +15,11 @@ export default function App() {
         <Route path="/factures" element={<Navigate to="/transactions" replace />} />
         <Route path="/depenses" element={<Navigate to="/transactions" replace />} />
         <Route path="/tva" element={<TVA />} />
-        <Route path="/pnl" element={<PnL />} />
-        <Route path="/bilan" element={<Bilan />} />
-        <Route path="/qonto" element={<Qonto />} />
+        <Route path="/exercice" element={<Exercice />} />
+        <Route path="/pnl" element={<Navigate to="/exercice" replace />} />
+        <Route path="/bilan" element={<Navigate to="/exercice" replace />} />
+        <Route path="/integrations" element={<Integrations />} />
+        <Route path="/qonto" element={<Navigate to="/integrations" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>

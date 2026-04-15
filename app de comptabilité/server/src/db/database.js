@@ -45,6 +45,19 @@ if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
+// Remove stale WAL lock file left by a previous crashed process.
+// node-sqlite3-wasm creates a lock directory; if the process crashes it is
+// never cleaned up, causing "database is locked" on the next startup.
+const LOCK_PATH = DB_PATH + '.lock';
+if (fs.existsSync(LOCK_PATH)) {
+  try {
+    fs.rmSync(LOCK_PATH, { recursive: true, force: true });
+    console.log('[db] Stale lock file removed:', LOCK_PATH);
+  } catch (e) {
+    console.warn('[db] Could not remove lock file:', e.message);
+  }
+}
+
 const _db = new Database(DB_PATH);
 
 // Enable WAL mode for better concurrent performance
@@ -147,7 +160,35 @@ db.exec(`
     skipped     INTEGER NOT NULL DEFAULT 0,
     errors      TEXT
   );
+
+  CREATE TABLE IF NOT EXISTS qonto_accounts (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    name                TEXT NOT NULL DEFAULT 'Compte Qonto',
+    organization_slug   TEXT,
+    secret_key          TEXT,
+    iban                TEXT,
+    auto_sync_enabled   INTEGER NOT NULL DEFAULT 0,
+    last_sync_at        TEXT,
+    created_at          TEXT DEFAULT (datetime('now'))
+  );
 `);
+
+// Add account_id to qonto_sync_log (migration — silently ignored if column already exists)
+try { db.run('ALTER TABLE qonto_sync_log ADD COLUMN account_id INTEGER'); } catch (_) {}
+
+// Migrate existing single qonto_config → qonto_accounts
+{
+  const acctCount = db.get('SELECT COUNT(*) AS cnt FROM qonto_accounts');
+  if (acctCount.cnt === 0) {
+    const oldCfg = db.get('SELECT * FROM qonto_config WHERE id = 1');
+    if (oldCfg?.organization_slug) {
+      db.run(
+        'INSERT INTO qonto_accounts (name, organization_slug, secret_key, iban, auto_sync_enabled, last_sync_at) VALUES (?, ?, ?, ?, ?, ?)',
+        ['Compte principal', oldCfg.organization_slug, oldCfg.secret_key, oldCfg.iban, oldCfg.auto_sync_enabled, oldCfg.last_sync_at]
+      );
+    }
+  }
+}
 
 // ── Migration PCG : mise à jour des catégories existantes vers les comptes PCG ─
 // Factures

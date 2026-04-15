@@ -28,6 +28,7 @@ const PCG_CHARGES = [
   '613 \u2013 Locations & charges locatives',
   '615 \u2013 Entretien et réparations',
   '616 \u2013 Primes d\u2019assurance',
+  '618 \u2013 Abonnements & frais informatiques',
   '622 \u2013 Honoraires et rémunérations d\u2019intermédiaires',
   '623 \u2013 Publicité & communication',
   '624 \u2013 Transports de biens',
@@ -69,9 +70,73 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
+// ── Multi-account CRUD ────────────────────────────────────────────────────────
+
+function getAllAccounts() {
+  return db.prepare(
+    'SELECT id, name, organization_slug, iban, auto_sync_enabled, last_sync_at, created_at FROM qonto_accounts ORDER BY created_at'
+  ).all();
+}
+
+function getAccount(id) {
+  return db.get('SELECT * FROM qonto_accounts WHERE id = ?', [id]);
+}
+
+function createAccount(data) {
+  const result = db.prepare(
+    'INSERT INTO qonto_accounts (name, organization_slug, secret_key, iban, auto_sync_enabled) VALUES (@name, @organization_slug, @secret_key, @iban, @auto_sync_enabled)'
+  ).run({
+    name:              data.name || 'Compte Qonto',
+    organization_slug: data.organization_slug,
+    secret_key:        data.secret_key,
+    iban:              data.iban || null,
+    auto_sync_enabled: data.auto_sync_enabled ? 1 : 0,
+  });
+  // Seed default mappings once (shared across all accounts)
+  const mappingCount = db.get('SELECT COUNT(*) AS cnt FROM qonto_category_mapping');
+  if (mappingCount.cnt === 0) {
+    for (const m of DEFAULT_MAPPINGS) {
+      db.run(
+        'INSERT OR IGNORE INTO qonto_category_mapping (qonto_operation_type, side, pcg_category, default_taux_tva) VALUES (?,?,?,?)',
+        [m.qonto_operation_type, m.side, m.pcg_category, m.default_taux_tva]
+      );
+    }
+  }
+  return result.lastInsertRowid;
+}
+
+function updateAccount(id, data) {
+  const existing = getAccount(id);
+  if (!existing) throw new Error('Compte introuvable');
+  // Preserve secret if placeholder submitted
+  const newSecret = data.secret_key?.startsWith('\u2022') ? existing.secret_key : data.secret_key;
+  db.run(
+    'UPDATE qonto_accounts SET name=?, organization_slug=?, secret_key=?, iban=?, auto_sync_enabled=? WHERE id=?',
+    [
+      data.name              ?? existing.name,
+      data.organization_slug ?? existing.organization_slug,
+      newSecret              ?? existing.secret_key,
+      data.iban              ?? existing.iban,
+      data.auto_sync_enabled  ? 1 : 0,
+      id,
+    ]
+  );
+}
+
+function deleteAccount(id) {
+  db.run('DELETE FROM qonto_accounts WHERE id = ?', [id]);
+}
+
+// ── Legacy single-config accessor (backward compat) ───────────────────────────
+
 function getConfig() {
+  // Try qonto_accounts first (new), fall back to qonto_config (legacy)
+  const acct = db.get('SELECT * FROM qonto_accounts ORDER BY created_at LIMIT 1');
+  if (acct) return acct;
   return db.get('SELECT * FROM qonto_config WHERE id = 1');
 }
+
+// ── Qonto API helpers ─────────────────────────────────────────────────────────
 
 async function qontoFetch(path, slug, secretKey) {
   const res = await fetch(`${QONTO_BASE}${path}`, {
@@ -179,8 +244,8 @@ function importTransaction(tx) {
 
 // ── Sync ──────────────────────────────────────────────────────────────────────
 
-async function runSync(config) {
-  const { organization_slug: slug, secret_key, iban, last_sync_at } = config;
+async function runSync(account) {
+  const { id: accountId, organization_slug: slug, secret_key, iban, last_sync_at } = account;
 
   let page     = 1;
   let fetched  = 0;
@@ -220,35 +285,63 @@ async function runSync(config) {
   }
 
   const now = new Date().toISOString();
-  db.run('UPDATE qonto_config SET last_sync_at = ? WHERE id = 1', [now]);
+
+  // Update last_sync_at on the account row
+  if (accountId) {
+    db.run('UPDATE qonto_accounts SET last_sync_at = ? WHERE id = ?', [now, accountId]);
+  } else {
+    // Fallback for legacy qonto_config row
+    db.run('UPDATE qonto_config SET last_sync_at = ? WHERE id = 1', [now]);
+  }
+
   db.run(
-    'INSERT INTO qonto_sync_log (synced_at, fetched, imported, skipped, errors) VALUES (?, ?, ?, ?, ?)',
-    [now, fetched, imported, skipped, errors.length ? errors.join('\n') : null]
+    'INSERT INTO qonto_sync_log (account_id, synced_at, fetched, imported, skipped, errors) VALUES (?, ?, ?, ?, ?, ?)',
+    [accountId || null, now, fetched, imported, skipped, errors.length ? errors.join('\n') : null]
   );
 
   return { synced_at: now, fetched, imported, skipped, errors };
 }
 
-// ── Auto-sync (daily) ─────────────────────────────────────────────────────────
+// ── Auto-sync (daily, all accounts) ──────────────────────────────────────────
 
 const MS_24H = 24 * 60 * 60 * 1000;
 
 function scheduleAutoSync() {
   setInterval(async () => {
-    const config = getConfig();
-    if (!config?.auto_sync_enabled || !config?.iban) return;
+    const accounts = getAllAccounts();
+    for (const acct of accounts) {
+      if (!acct.auto_sync_enabled || !acct.iban) continue;
 
-    const lastSync = config.last_sync_at ? new Date(config.last_sync_at).getTime() : 0;
-    if (Date.now() - lastSync < MS_24H) return;
+      const lastSync = acct.last_sync_at ? new Date(acct.last_sync_at).getTime() : 0;
+      if (Date.now() - lastSync < MS_24H) continue;
 
-    console.log('[qonto] Auto-sync démarré…');
-    try {
-      const result = await runSync(config);
-      console.log(`[qonto] Auto-sync terminé : ${result.imported} importées, ${result.skipped} ignorées`);
-    } catch (e) {
-      console.error('[qonto] Auto-sync échoué :', e.message);
+      console.log(`[qonto] Auto-sync démarré pour "${acct.name}"…`);
+      try {
+        // Need full account with secret_key
+        const fullAcct = getAccount(acct.id);
+        const result = await runSync(fullAcct);
+        console.log(`[qonto] "${acct.name}" : ${result.imported} importées, ${result.skipped} ignorées`);
+      } catch (e) {
+        console.error(`[qonto] "${acct.name}" auto-sync échoué :`, e.message);
+      }
     }
-  }, 60 * 60 * 1000); // vérifie toutes les heures
+  }, 60 * 60 * 1000); // check every hour
 }
 
-module.exports = { getConfig, getOrganization, runSync, scheduleAutoSync, PCG_PRODUITS, PCG_CHARGES, DEFAULT_MAPPINGS };
+module.exports = {
+  // Multi-account CRUD
+  getAllAccounts,
+  getAccount,
+  createAccount,
+  updateAccount,
+  deleteAccount,
+  // Legacy
+  getConfig,
+  // Qonto API
+  getOrganization,
+  runSync,
+  scheduleAutoSync,
+  PCG_PRODUITS,
+  PCG_CHARGES,
+  DEFAULT_MAPPINGS,
+};

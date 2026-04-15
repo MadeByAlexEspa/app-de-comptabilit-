@@ -4,10 +4,8 @@ import styles from './Layout.module.css'
 const navItems = [
   { to: '/', label: 'Tableau de bord', icon: '🏠', end: true },
   { to: '/transactions', label: 'Transactions', icon: '💳' },
-  { to: '/qonto', label: 'Qonto', icon: '🏦' },
   { to: '/tva', label: 'TVA', icon: '📊' },
-  { to: '/pnl', label: 'P&L', icon: '📈' },
-  { to: '/bilan', label: 'Bilan', icon: '⚖️' },
+  { to: '/exercice', label: 'Comptes annuels', icon: '📈' },
 ]
 
 export default function Layout({ children }) {
@@ -34,6 +32,15 @@ export default function Layout({ children }) {
           ))}
         </nav>
         <div className={styles.sidebarFooter}>
+          <NavLink
+            to="/integrations"
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
+            }
+          >
+            <span className={styles.navIcon}>🔌</span>
+            <span className={styles.navLabel}>Connexions API</span>
+          </NavLink>
           <span className={styles.footerText}>v1.0.0</span>
         </div>
       </aside>

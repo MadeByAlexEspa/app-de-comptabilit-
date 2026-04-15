@@ -15,9 +15,17 @@ const CAT_CA = new Set([
   '708 \u2013 Produits des activit\u00e9s annexes',
 ]);
 
+// 709 : rabais, remises, ristournes accordés (débit sur vente → réduit le CA)
+// Enregistrés en dépenses dans l'app ; soustraits du CA brut pour obtenir le CA net.
+const CAT_AVOIRS_CLIENTS = new Set([
+  '709 \u2013 Avoirs & remboursements clients',
+]);
+
 const CAT_AUTRES_PRODUITS_EXPL = new Set([
   '74 \u2013 Subventions d\u2019exploitation',
   '75 \u2013 Autres produits de gestion courante',
+  // 409 : avoir fournisseur reçu — enregistré en entrée, réduit le coût d'achat net
+  '409 \u2013 Avoirs fournisseurs re\u00e7us',
 ]);
 
 const CAT_PRODUITS_FINANCIERS = new Set([
@@ -41,6 +49,7 @@ const CAT_CHARGES_EXTERNES = new Set([
   '613 \u2013 Locations & charges locatives',
   '615 \u2013 Entretien et r\u00e9parations',
   '616 \u2013 Primes d\u2019assurance',
+  '618 \u2013 Abonnements & frais informatiques',
   '622 \u2013 Honoraires et r\u00e9mun\u00e9rations d\u2019interm\u00e9diaires',
   '623 \u2013 Publicit\u00e9 & communication',
   '624 \u2013 Transports de biens',
@@ -57,6 +66,8 @@ const CAT_IMPOTS_TAXES = new Set([
 const CAT_CHARGES_PERSONNEL = new Set([
   '641 \u2013 R\u00e9mun\u00e9rations du personnel',
   '645 \u2013 Charges sociales & cotisations',
+  // 421 : remboursement de notes de frais (charge de personnel nette de TVA)
+  '421 \u2013 Notes de frais du personnel',
 ]);
 
 const CAT_DOTATIONS = new Set([
@@ -84,6 +95,7 @@ const ALL_PRODUITS_PNL = new Set([
 const ALL_CHARGES_PNL = new Set([
   ...CAT_ACHATS, ...CAT_CHARGES_EXTERNES, ...CAT_IMPOTS_TAXES, ...CAT_CHARGES_PERSONNEL,
   ...CAT_DOTATIONS, ...CAT_CHARGES_FINANCIERES, ...CAT_CHARGES_EXCEPTIONNELLES, ...CAT_IS,
+  ...CAT_AVOIRS_CLIENTS,
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -109,7 +121,8 @@ function buildBucket(rows, catSet) {
 /**
  * Compte de résultat avec Soldes Intermédiaires de Gestion (SIG).
  * Conforme PCG — règlement ANC n°2014-03, art. 823-1.
- * Les mouvements de capitaux (Cl. 1) et d'immobilisations (Cl. 2) sont exclus.
+ * Les mouvements de capitaux (Cl. 1), d'immobilisations (Cl. 2)
+ * et les virements internes (Cl. 5) sont exclus.
  *
  * @param {string} debut - "YYYY-MM-DD"
  * @param {string} fin   - "YYYY-MM-DD"
@@ -119,22 +132,26 @@ function getPnlReport(debut, fin) {
   const depenses = db.prepare('SELECT * FROM depenses WHERE date >= ? AND date <= ?').all(debut, fin);
 
   // ── Produits ───────────────────────────────────────────────────────────────
-  const ca                   = buildBucket(factures, CAT_CA);
-  const autres_produits_expl = buildBucket(factures, CAT_AUTRES_PRODUITS_EXPL);
-  const produits_financiers  = buildBucket(factures, CAT_PRODUITS_FINANCIERS);
+  const ca                     = buildBucket(factures, CAT_CA);
+  const avoirs_clients         = buildBucket(depenses, CAT_AVOIRS_CLIENTS);
+  const autres_produits_expl   = buildBucket(factures, CAT_AUTRES_PRODUITS_EXPL);
+  const produits_financiers    = buildBucket(factures, CAT_PRODUITS_FINANCIERS);
   const produits_exceptionnels = buildBucket(factures, CAT_PRODUITS_EXCEPTIONNELS);
 
-  const total_produits_expl = round2(ca.total + autres_produits_expl.total);
+  // CA net = CA brut - avoirs / remboursements accordés aux clients (709)
+  const ca_net = round2(ca.total - avoirs_clients.total);
+
+  const total_produits_expl = round2(ca_net + autres_produits_expl.total);
 
   // ── Charges ────────────────────────────────────────────────────────────────
-  const achats              = buildBucket(depenses, CAT_ACHATS);
-  const charges_externes    = buildBucket(depenses, CAT_CHARGES_EXTERNES);
-  const impots_taxes        = buildBucket(depenses, CAT_IMPOTS_TAXES);
-  const charges_personnel   = buildBucket(depenses, CAT_CHARGES_PERSONNEL);
-  const dotations           = buildBucket(depenses, CAT_DOTATIONS);
-  const charges_financieres = buildBucket(depenses, CAT_CHARGES_FINANCIERES);
+  const achats               = buildBucket(depenses, CAT_ACHATS);
+  const charges_externes     = buildBucket(depenses, CAT_CHARGES_EXTERNES);
+  const impots_taxes         = buildBucket(depenses, CAT_IMPOTS_TAXES);
+  const charges_personnel    = buildBucket(depenses, CAT_CHARGES_PERSONNEL);
+  const dotations            = buildBucket(depenses, CAT_DOTATIONS);
+  const charges_financieres  = buildBucket(depenses, CAT_CHARGES_FINANCIERES);
   const charges_exceptionnelles = buildBucket(depenses, CAT_CHARGES_EXCEPTIONNELLES);
-  const impot_societes      = buildBucket(depenses, CAT_IS);
+  const impot_societes       = buildBucket(depenses, CAT_IS);
 
   const total_charges_expl = round2(
     achats.total + charges_externes.total + impots_taxes.total +
@@ -148,9 +165,9 @@ function getPnlReport(debut, fin) {
     (achats.par_categorie['607 \u2013 Achats de marchandises'] || 0)
   );
 
-  // Valeur ajoutée = CA + autres produits expl - achats consommés - charges externes
+  // Valeur ajoutée = CA net + autres produits expl - achats consommés - charges externes
   const valeur_ajoutee = round2(
-    ca.total + autres_produits_expl.total - achats.total - charges_externes.total
+    ca_net + autres_produits_expl.total - achats.total - charges_externes.total
   );
 
   // EBE = VA - impôts et taxes - charges de personnel
@@ -179,6 +196,8 @@ function getPnlReport(debut, fin) {
 
     // Produits
     ca,
+    avoirs_clients,
+    ca_net,
     autres_produits_expl,
     produits_financiers,
     produits_exceptionnels,

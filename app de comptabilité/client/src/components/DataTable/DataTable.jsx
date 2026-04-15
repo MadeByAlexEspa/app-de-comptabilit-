@@ -1,11 +1,100 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import styles from './DataTable.module.css'
+
+/**
+ * Inline-editable cell.
+ * Click → transforms into an input/select.
+ * Enter or blur → saves. Escape → cancels.
+ */
+function InlineCell({ col, row, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+  const inputRef = useRef(null)
+
+  useEffect(() => {
+    if (editing) {
+      inputRef.current?.focus()
+      if (col.editable.type !== 'select') inputRef.current?.select?.()
+    }
+  }, [editing, col.editable.type])
+
+  function startEdit(e) {
+    e.stopPropagation()
+    setValue(String(row[col.key] ?? ''))
+    setEditing(true)
+  }
+
+  function commit() {
+    setEditing(false)
+    const orig = row[col.key]
+    const newVal = col.editable.type === 'number' ? parseFloat(value) : value
+    if (String(newVal) !== String(orig ?? '')) {
+      onSave(row, col.key, newVal)
+    }
+  }
+
+  function cancel() {
+    setEditing(false)
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter')  { e.preventDefault(); commit() }
+    if (e.key === 'Escape') { e.stopPropagation(); cancel() }
+  }
+
+  const opts = typeof col.editable.options === 'function'
+    ? col.editable.options(row)
+    : (col.editable.options ?? [])
+
+  if (editing) {
+    if (col.editable.type === 'select') {
+      return (
+        <select
+          ref={inputRef}
+          className={styles.inlineSelect}
+          value={value}
+          onChange={e => setValue(e.target.value)}
+          onBlur={commit}
+          onKeyDown={handleKeyDown}
+        >
+          {opts.map(o => (
+            <option key={o.value} value={o.value}>{o.label}</option>
+          ))}
+        </select>
+      )
+    }
+    return (
+      <input
+        ref={inputRef}
+        type={col.editable.type}
+        className={styles.inlineInput}
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onBlur={commit}
+        onKeyDown={handleKeyDown}
+        step={col.editable.step}
+        min={col.editable.min}
+      />
+    )
+  }
+
+  return (
+    <span
+      className={styles.editableCell}
+      onClick={startEdit}
+      title="Cliquer pour modifier"
+    >
+      {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+    </span>
+  )
+}
 
 export default function DataTable({
   columns,
   data,
   onEdit,
   onDelete,
+  onCellSave,
   emptyMessage = 'Aucune donnée',
   // selection
   selectable = false,
@@ -40,12 +129,11 @@ export default function DataTable({
   // ── Selection helpers ──────────────────────────────────────────────────────
 
   function rowKey(row, i) {
-    // use a composite key so factures and depenses with the same id don't clash
     return row._type ? `${row._type}-${row.id}` : (row.id ?? i)
   }
 
-  const pageKeys  = sorted.map((row, i) => rowKey(row, i))
-  const allOnPage = pageKeys.length > 0 && pageKeys.every(k => selectedIds.has(k))
+  const pageKeys   = sorted.map((row, i) => rowKey(row, i))
+  const allOnPage  = pageKeys.length > 0 && pageKeys.every(k => selectedIds.has(k))
   const someOnPage = !allOnPage && pageKeys.some(k => selectedIds.has(k))
 
   function toggleAll() {
@@ -135,8 +223,14 @@ export default function DataTable({
                   </td>
                 )}
                 {columns.map(col => (
-                  <td key={col.key} className={styles.td}>
-                    {col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')}
+                  <td
+                    key={col.key}
+                    className={`${styles.td} ${col.editable && onCellSave ? styles.tdEditable : ''}`}
+                  >
+                    {col.editable && onCellSave
+                      ? <InlineCell col={col} row={row} onSave={onCellSave} />
+                      : col.render ? col.render(row[col.key], row) : (row[col.key] ?? '—')
+                    }
                   </td>
                 ))}
                 {(onEdit || onDelete) && (
@@ -146,7 +240,7 @@ export default function DataTable({
                         <button
                           className={`${styles.btn} ${styles.btnEdit}`}
                           onClick={() => onEdit(row)}
-                          title="Modifier"
+                          title="Modifier (formulaire complet)"
                         >
                           ✏️
                         </button>

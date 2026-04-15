@@ -5,20 +5,24 @@ const router = Router();
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
-// ── GET /api/bilan?date=YYYY-MM-DD ────────────────────────────────────────────
+// ── GET /api/bilan?fin=YYYY-MM-DD[&debut=YYYY-MM-DD] ─────────────────────────
+// Accepte aussi "date" pour la rétrocompatibilité.
 router.get('/', (req, res, next) => {
   try {
-    const { date } = req.query;
+    const fin   = req.query.fin   || req.query.date;
+    const debut = req.query.debut || null;
 
-    if (!date) {
-      return res.status(400).json({ error: 'Le paramètre "date" est requis (format YYYY-MM-DD)' });
+    if (!fin) {
+      return res.status(400).json({ error: 'Le paramètre "fin" (ou "date") est requis (format YYYY-MM-DD)' });
+    }
+    if (!DATE_RE.test(fin)) {
+      return res.status(400).json({ error: 'Format de date invalide pour "fin". Attendu : YYYY-MM-DD' });
+    }
+    if (debut && !DATE_RE.test(debut)) {
+      return res.status(400).json({ error: 'Format de date invalide pour "debut". Attendu : YYYY-MM-DD' });
     }
 
-    if (!DATE_RE.test(date)) {
-      return res.status(400).json({ error: 'Format de date invalide. Attendu : YYYY-MM-DD' });
-    }
-
-    const report = getBilanReport(date);
+    const report = getBilanReport(fin, debut);
     res.json(report);
   } catch (err) {
     next(err);

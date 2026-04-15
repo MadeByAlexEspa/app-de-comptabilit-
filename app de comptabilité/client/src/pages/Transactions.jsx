@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
+import { buildCategoriePatch } from '../lib/tvaRules.js'
 import { useFactures } from '../hooks/useFactures.js'
 import { useDepenses } from '../hooks/useDepenses.js'
 import DataTable from '../components/DataTable/DataTable.jsx'
@@ -8,6 +9,70 @@ import { formatEur, formatDate } from '../lib/api.js'
 import styles from './Transactions.module.css'
 
 const PAGE_SIZE = 20
+
+// ── Options pour l'édition inline ─────────────────────────────────────────
+
+const STATUT_OPTIONS = [
+  { value: 'payee',      label: 'Payée' },
+  { value: 'en_attente', label: 'En attente' },
+]
+
+const CAT_ENTREES_OPTIONS = [
+  '706 \u2013 Prestations de services',
+  '701 \u2013 Ventes de produits finis',
+  '707 \u2013 Ventes de marchandises',
+  '708 \u2013 Produits des activit\u00e9s annexes',
+  '409 \u2013 Avoirs fournisseurs re\u00e7us',
+  '74 \u2013 Subventions d\u2019exploitation',
+  '75 \u2013 Autres produits de gestion courante',
+  '76 \u2013 Produits financiers',
+  '77 \u2013 Produits exceptionnels',
+  '101 \u2013 Capital social (apport)',
+  '108 \u2013 Apport de l\u2019exploitant',
+  '164 \u2013 Emprunts bancaires re\u00e7us',
+  '455 \u2013 Avances en compte courant associ\u00e9',
+  '58 \u2013 Virement interne entre comptes',
+].map(v => ({ value: v, label: v }))
+
+const CAT_SORTIES_OPTIONS = [
+  '604 \u2013 Achats de prestations de services',
+  '606 \u2013 Fournitures et petits \u00e9quipements',
+  '607 \u2013 Achats de marchandises',
+  '611 \u2013 Sous-traitance g\u00e9n\u00e9rale',
+  '613 \u2013 Locations & charges locatives',
+  '615 \u2013 Entretien et r\u00e9parations',
+  '616 \u2013 Primes d\u2019assurance',
+  '618 \u2013 Abonnements & frais informatiques',
+  '622 \u2013 Honoraires et r\u00e9mun\u00e9rations d\u2019interm\u00e9diaires',
+  '623 \u2013 Publicit\u00e9 & communication',
+  '624 \u2013 Transports de biens',
+  '625 \u2013 D\u00e9placements, missions & r\u00e9ceptions',
+  '626 \u2013 Frais postaux & t\u00e9l\u00e9communications',
+  '627 \u2013 Services bancaires & assimil\u00e9s',
+  '631 \u2013 Imp\u00f4ts, taxes et versements assimil\u00e9s sur r\u00e9mun\u00e9rations',
+  '635 \u2013 Autres imp\u00f4ts, taxes et versements assimil\u00e9s',
+  '641 \u2013 R\u00e9mun\u00e9rations du personnel',
+  '645 \u2013 Charges sociales & cotisations',
+  '421 \u2013 Notes de frais du personnel',
+  '681 \u2013 Dotations aux amortissements d\u2019exploitation',
+  '661 \u2013 Charges d\u2019int\u00e9r\u00eats',
+  '668 \u2013 Autres charges financi\u00e8res',
+  '709 \u2013 Avoirs & remboursements clients',
+  '671 \u2013 Charges exceptionnelles sur op\u00e9rations de gestion',
+  '675 \u2013 Valeurs comptables des \u00e9l\u00e9ments c\u00e9d\u00e9s',
+  '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
+  '201 \u2013 Frais d\u2019\u00e9tablissement',
+  '2052 \u2013 Logiciels (d\u00e9veloppement interne)',
+  '2051 \u2013 Concessions, brevets, licences, marques',
+  '211 \u2013 Terrains',
+  '213 \u2013 Constructions',
+  '215 \u2013 Mat\u00e9riel et outillage industriel',
+  '218 \u2013 Autres immobilisations corporelles',
+  '108 \u2013 Pr\u00e9l\u00e8vements de l\u2019exploitant',
+  '164 \u2013 Remboursement d\u2019emprunt',
+  '455 \u2013 Remboursement compte courant associ\u00e9',
+  '58 \u2013 Virement interne entre comptes',
+].map(v => ({ value: v, label: v }))
 
 function StatutBadge({ statut }) {
   const map = {
@@ -28,36 +93,50 @@ function TypeBadge({ type }) {
 
 const COLUMNS_TOUS = [
   { key: '_type',       label: 'Type',        render: (_, row) => <TypeBadge type={row._type} />, sortable: false },
-  { key: 'date',        label: 'Date',        render: v => formatDate(v) },
-  { key: '_tiers',      label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—' },
-  { key: 'description', label: 'Description' },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
+  { key: 'date',        label: 'Date',        render: v => formatDate(v),
+    editable: { type: 'date' } },
+  { key: '_tiers',      label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—',
+    sortable: false },
+  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong> },
-  { key: 'categorie',   label: 'Catégorie' },
-  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false },
+  { key: 'categorie',   label: 'Catégorie',
+    editable: { type: 'select', options: row => row._type === 'entree' ? CAT_ENTREES_OPTIONS : CAT_SORTIES_OPTIONS } },
+  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
+    editable: { type: 'select', options: STATUT_OPTIONS } },
 ]
 
 const COLUMNS_ENTREES = [
-  { key: 'numero',      label: 'Numéro' },
-  { key: 'date',        label: 'Date',        render: v => formatDate(v) },
-  { key: 'client',      label: 'Client' },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
+  { key: 'numero',      label: 'Numéro',
+    editable: { type: 'text' } },
+  { key: 'date',        label: 'Date',        render: v => formatDate(v),
+    editable: { type: 'date' } },
+  { key: 'client',      label: 'Client',
+    editable: { type: 'text' } },
+  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong> },
-  { key: 'categorie',   label: 'Catégorie' },
-  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false },
+  { key: 'categorie',   label: 'Catégorie',
+    editable: { type: 'select', options: CAT_ENTREES_OPTIONS } },
+  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
+    editable: { type: 'select', options: STATUT_OPTIONS } },
 ]
 
 const COLUMNS_SORTIES = [
-  { key: 'date',        label: 'Date',        render: v => formatDate(v) },
-  { key: 'fournisseur', label: 'Fournisseur' },
-  { key: 'description', label: 'Description' },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
+  { key: 'date',        label: 'Date',        render: v => formatDate(v),
+    editable: { type: 'date' } },
+  { key: 'fournisseur', label: 'Fournisseur',
+    editable: { type: 'text' } },
+  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong> },
-  { key: 'categorie',   label: 'Catégorie' },
-  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false },
+  { key: 'categorie',   label: 'Catégorie',
+    editable: { type: 'select', options: CAT_SORTIES_OPTIONS } },
+  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
+    editable: { type: 'select', options: STATUT_OPTIONS } },
 ]
 
 function Pagination({ page, totalPages, onChange }) {
@@ -130,10 +209,12 @@ export default function Transactions() {
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [modalOpen, setModalOpen]     = useState(false)
   const [editTarget, setEditTarget]   = useState(null)
-  const [confirmDelete, setConfirmDelete]     = useState(null)
+  const [confirmDelete, setConfirmDelete]         = useState(null)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
-  const [bulkDeleting, setBulkDeleting]       = useState(false)
-  const [actionError, setActionError] = useState(null)
+  const [bulkDeleting, setBulkDeleting]           = useState(false)
+  const [actionError, setActionError]             = useState(null)
+  const [pendingCatChange, setPendingCatChange]   = useState(null)
+  // pendingCatChange: { row, newCategory, matchingRows, isEntree }
 
   const {
     factures, loading: loadingF, error: errorF,
@@ -180,6 +261,46 @@ export default function Transactions() {
   const safePage   = Math.min(page, totalPages)
   const pageData   = fullData.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
 
+  // ── Propagation de catégorie par tiers ────────────────────────────────────
+
+  function findMatchingRows(row, newCategory, isEntree) {
+    const tiers = isEntree ? row.client : row.fournisseur
+    if (!tiers) return []
+    const pool = isEntree ? factures : depenses
+    const tiersKey = isEntree ? 'client' : 'fournisseur'
+    return pool.filter(r => r[tiersKey] === tiers && r.id !== row.id && r.categorie !== newCategory)
+  }
+
+  async function saveCategoryChange(row, patch, isEntree) {
+    if (isEntree) await updateFacture(row.id, patch)
+    else          await updateDepense(row.id, patch)
+  }
+
+  async function applyOnce() {
+    const { row, patch, isEntree } = pendingCatChange
+    setPendingCatChange(null)
+    try {
+      await saveCategoryChange(row, patch, isEntree)
+    } catch (e) {
+      setActionError(e.message)
+    }
+  }
+
+  async function applyToAll() {
+    const { row, patch, matchingRows, isEntree } = pendingCatChange
+    setPendingCatChange(null)
+    try {
+      await saveCategoryChange(row, patch, isEntree)
+      for (const r of matchingRows) {
+        // Recalcule le patch TVA par rapport à la catégorie de chaque ligne
+        const rowPatch = buildCategoriePatch(r.categorie, patch.categorie)
+        await saveCategoryChange(r, rowPatch, isEntree)
+      }
+    } catch (e) {
+      setActionError(e.message)
+    }
+  }
+
   function openCreate() {
     setEditTarget(null)
     setModalOpen(true)
@@ -206,12 +327,48 @@ export default function Transactions() {
     : isEntrees
 
   async function handleSubmit(formData) {
+    const oldCategory = editTarget?.categorie
+    const newCategory = formData.categorie
     if (editIsEntree) {
       editTarget ? await updateFacture(editTarget.id, formData) : await createFacture(formData)
     } else {
       editTarget ? await updateDepense(editTarget.id, formData) : await createDepense(formData)
     }
     closeModal()
+    // Après sauvegarde, proposer la propagation si la catégorie a changé
+    if (editTarget && oldCategory && oldCategory !== newCategory) {
+      const matches = findMatchingRows(editTarget, newCategory, editIsEntree)
+      if (matches.length > 0) {
+        // Le formulaire a déjà appliqué le bon taux_tva — on le réutilise pour la propagation
+        const patch = { categorie: newCategory, taux_tva: formData.taux_tva }
+        setPendingCatChange({ row: editTarget, newCategory, patch, matchingRows: matches, isEntree: editIsEntree })
+      }
+    }
+  }
+
+  async function handleCellSave(row, field, newValue) {
+    const isEntree = row._type ? row._type === 'entree' : isEntrees
+    if (field === 'categorie') {
+      const patch = buildCategoriePatch(row.categorie, newValue)
+      const matches = findMatchingRows(row, newValue, isEntree)
+      if (matches.length > 0) {
+        setPendingCatChange({ row, newCategory: newValue, patch, matchingRows: matches, isEntree })
+        return
+      }
+      try {
+        if (isEntree) await updateFacture(row.id, patch)
+        else          await updateDepense(row.id, patch)
+      } catch (e) {
+        setActionError(e.message)
+      }
+      return
+    }
+    try {
+      if (isEntree) await updateFacture(row.id, { [field]: newValue })
+      else          await updateDepense(row.id, { [field]: newValue })
+    } catch (e) {
+      setActionError(e.message)
+    }
   }
 
   async function handleDeleteConfirm() {
@@ -354,6 +511,7 @@ export default function Transactions() {
             data={pageData}
             onEdit={openEdit}
             onDelete={row => setConfirmDelete(row)}
+            onCellSave={handleCellSave}
             emptyMessage={
               isTous    ? 'Aucune transaction. Ajoutez une entrée ou une sortie !' :
               isEntrees ? 'Aucune entrée. Créez votre première entrée !' :
@@ -405,6 +563,51 @@ export default function Transactions() {
           </div>
         </Modal>
       )}
+
+      {pendingCatChange && (() => {
+        const { newCategory, matchingRows, isEntree } = pendingCatChange
+        const tiersLabel = isEntree
+          ? pendingCatChange.row.client
+          : pendingCatChange.row.fournisseur
+        const count = matchingRows.length
+        return (
+          <Modal
+            title="Appliquer à toutes les transactions ?"
+            onClose={applyOnce}
+            size="small"
+          >
+            <div className={styles.confirmBody}>
+              <p>
+                Vous changez la catégorie en{' '}
+                <strong>{newCategory}</strong>.
+              </p>
+              <p>
+                {count} autre{count > 1 ? 's' : ''} transaction{count > 1 ? 's' : ''} liée{count > 1 ? 's' : ''} à{' '}
+                <strong>{tiersLabel}</strong> {count > 1 ? 'ont' : 'a'} une catégorie différente.
+              </p>
+              <ul className={styles.matchList}>
+                {matchingRows.slice(0, 5).map(r => (
+                  <li key={r.id} className={styles.matchItem}>
+                    {r.date} — {formatEur(r.montant_ttc)}
+                    <span className={styles.matchCat}>{r.categorie}</span>
+                  </li>
+                ))}
+                {matchingRows.length > 5 && (
+                  <li className={styles.matchMore}>…et {matchingRows.length - 5} autre{matchingRows.length - 5 > 1 ? 's' : ''}</li>
+                )}
+              </ul>
+              <div className={styles.confirmActions}>
+                <button className={styles.btnCancel} onClick={applyOnce}>
+                  Juste cette fois
+                </button>
+                <button className={styles.btnPrimary} onClick={applyToAll}>
+                  Appliquer à toutes ({count + 1})
+                </button>
+              </div>
+            </div>
+          </Modal>
+        )
+      })()}
 
       {confirmBulkDelete && (
         <Modal

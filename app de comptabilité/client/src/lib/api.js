@@ -27,12 +27,24 @@ export const api = {
   deleteDepense: (id) => request(`/depenses/${id}`, { method: 'DELETE' }),
 
   // Reports
-  getTVA: (mois) => request(`/tva?mois=${mois}`),
+  getTVA: (debut, fin) => request(`/tva?debut=${debut}&fin=${fin}`),
   getPnL: (debut, fin) => request(`/pnl?debut=${debut}&fin=${fin}`),
-  getBilan: (date) => request(`/bilan?date=${date}`),
+  getBilan: (fin, debut) => request(`/bilan?fin=${fin}${debut ? `&debut=${debut}` : ''}`),
   getDashboard: () => request('/dashboard'),
 
-  // Qonto
+  // Drilldown transactions
+  getTransactions: (params) => request(`/transactions?${new URLSearchParams(params).toString()}`),
+
+  // Qonto — multi-account CRUD
+  getQontoConfigs:        ()        => request('/qonto/configs'),
+  createQontoConfig:      (data)    => request('/qonto/configs',                  { method: 'POST',   body: data }),
+  updateQontoConfig:      (id, data)=> request(`/qonto/configs/${id}`,            { method: 'PUT',    body: data }),
+  deleteQontoConfig:      (id)      => request(`/qonto/configs/${id}`,            { method: 'DELETE' }),
+  getQontoBankAccounts:   (id)      => request(`/qonto/configs/${id}/bank-accounts`),
+  syncQontoAccount:       (id)      => request(`/qonto/configs/${id}/sync`,       { method: 'POST' }),
+  syncAllQonto:           ()        => request('/qonto/sync-all',                 { method: 'POST' }),
+
+  // Qonto — legacy / shared
   getQontoConfig:    ()       => request('/qonto/config'),
   saveQontoConfig:   (data)   => request('/qonto/config',   { method: 'POST', body: data }),
   getQontoAccounts:  ()       => request('/qonto/accounts'),

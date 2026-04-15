@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import styles from './EntryForm.module.css'
 import { formatEur } from '../../lib/api.js'
+import { getTvaRegime } from '../../lib/tvaRules.js'
 
 // Taux légaux de TVA (CGI art. 278 à 281 nonies)
 const TAUX_TVA = [
@@ -30,6 +31,12 @@ const GROUPES_ENTREES = [
     ],
   },
   {
+    label: 'Avoirs & remboursements reçus (Classe 4)',
+    options: [
+      '409 \u2013 Avoirs fournisseurs re\u00e7us',
+    ],
+  },
+  {
     label: 'Produits financiers & exceptionnels',
     options: [
       '76 \u2013 Produits financiers',
@@ -43,6 +50,12 @@ const GROUPES_ENTREES = [
       '108 \u2013 Apport de l\u2019exploitant',
       '164 \u2013 Emprunts bancaires re\u00e7us',
       '455 \u2013 Avances en compte courant associ\u00e9',
+    ],
+  },
+  {
+    label: 'Virements internes (Classe 5 — hors P&L)',
+    options: [
+      '58 \u2013 Virement interne entre comptes',
     ],
   },
 ]
@@ -64,6 +77,7 @@ const GROUPES_SORTIES = [
       '613 \u2013 Locations & charges locatives',
       '615 \u2013 Entretien et r\u00e9parations',
       '616 \u2013 Primes d\u2019assurance',
+      '618 \u2013 Abonnements & frais informatiques',
       '622 \u2013 Honoraires et r\u00e9mun\u00e9rations d\u2019interm\u00e9diaires',
       '623 \u2013 Publicit\u00e9 & communication',
       '624 \u2013 Transports de biens',
@@ -84,12 +98,19 @@ const GROUPES_SORTIES = [
     options: [
       '641 \u2013 R\u00e9mun\u00e9rations du personnel',
       '645 \u2013 Charges sociales & cotisations',
+      '421 \u2013 Notes de frais du personnel',
     ],
   },
   {
     label: 'Dotations aux amortissements (Classe 6)',
     options: [
       '681 \u2013 Dotations aux amortissements d\u2019exploitation',
+    ],
+  },
+  {
+    label: 'Avoirs & remboursements clients (Classe 7)',
+    options: [
+      '709 \u2013 Avoirs & remboursements clients',
     ],
   },
   {
@@ -111,7 +132,8 @@ const GROUPES_SORTIES = [
     label: 'Immobilisations (Classe 2 — hors P&L)',
     options: [
       '201 \u2013 Frais d\u2019\u00e9tablissement',
-      '205 \u2013 Concessions, brevets, licences, marques',
+      '2052 \u2013 Logiciels (d\u00e9veloppement interne)',
+      '2051 \u2013 Concessions, brevets, licences, marques',
       '211 \u2013 Terrains',
       '213 \u2013 Constructions',
       '215 \u2013 Mat\u00e9riel et outillage industriel',
@@ -124,6 +146,12 @@ const GROUPES_SORTIES = [
       '108 \u2013 Pr\u00e9l\u00e8vements de l\u2019exploitant',
       '164 \u2013 Remboursement d\u2019emprunt',
       '455 \u2013 Remboursement compte courant associ\u00e9',
+    ],
+  },
+  {
+    label: 'Virements internes (Classe 5 — hors P&L)',
+    options: [
+      '58 \u2013 Virement interne entre comptes',
     ],
   },
 ]
@@ -167,6 +195,7 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
     setForm({ ...defaultValues(type), ...initialData })
   }, [type, initialData])
 
+  const tvaRegime  = getTvaRegime(form.categorie)
   const montantHt  = parseFloat(form.montant_ht) || 0
   const tauxTva    = parseFloat(form.taux_tva) || 0
   const montantTva = +(montantHt * tauxTva / 100).toFixed(2)
@@ -174,7 +203,12 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
 
   function handleChange(e) {
     const { name, value } = e.target
-    setForm(prev => ({ ...prev, [name]: value }))
+    if (name === 'categorie') {
+      const regime = getTvaRegime(value)
+      setForm(prev => ({ ...prev, categorie: value, taux_tva: regime.taux }))
+    } else {
+      setForm(prev => ({ ...prev, [name]: value }))
+    }
   }
 
   async function handleSubmit(e) {
@@ -282,9 +316,21 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
         </div>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="taux_tva">Taux TVA</label>
-          <select id="taux_tva" name="taux_tva" className={styles.select} value={form.taux_tva} onChange={handleChange}>
+          <select
+            id="taux_tva" name="taux_tva"
+            className={styles.select}
+            value={form.taux_tva}
+            onChange={handleChange}
+            disabled={tvaRegime.locked}
+            title={tvaRegime.locked ? 'Cette catégorie est hors champ ou exonérée de TVA (CGI art. 261)' : undefined}
+          >
             {TAUX_TVA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
           </select>
+          {tvaRegime.locked && (
+            <span className={styles.tvaNote}>
+              Hors champ / exonéré de TVA — taux forcé à 0 %
+            </span>
+          )}
         </div>
       </div>
 

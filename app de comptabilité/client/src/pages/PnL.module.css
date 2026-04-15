@@ -4,6 +4,27 @@
   gap: 24px;
 }
 
+.clickableRow {
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.clickableRow:hover {
+  background: #f0f9ff;
+}
+
+.clickableRow td:first-child::after {
+  content: ' ↗';
+  font-size: 10px;
+  color: #9ca3af;
+  opacity: 0;
+  transition: opacity 0.1s;
+}
+
+.clickableRow:hover td:first-child::after {
+  opacity: 1;
+}
+
 .pageHeader {
   display: flex;
   align-items: flex-start;

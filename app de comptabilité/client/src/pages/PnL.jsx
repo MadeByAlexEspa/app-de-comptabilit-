@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { api, formatEur } from '../lib/api.js'
 import styles from './PnL.module.css'
+import TransactionDrilldown from '../components/TransactionDrilldown/TransactionDrilldown.jsx'
 
 function currentYear() {
   const y = new Date().getFullYear()
@@ -8,11 +9,11 @@ function currentYear() {
 }
 
 // Affiche les lignes d'un bucket { par_categorie, total }
-function BucketRows({ bucket }) {
+function BucketRows({ bucket, onCategoryClick }) {
   const entries = Object.entries(bucket.par_categorie)
   if (entries.length === 0) return null
   return entries.map(([cat, montant]) => (
-    <tr key={cat}>
+    <tr key={cat} className={styles.clickableRow} onClick={() => onCategoryClick(cat)}>
       <td className={styles.indent}>{cat}</td>
       <td className={styles.right}>{formatEur(montant)}</td>
     </tr>
@@ -67,9 +68,14 @@ export default function PnL() {
   const { debut: defaultDebut, fin: defaultFin } = currentYear()
   const [debut, setDebut]   = useState(defaultDebut)
   const [fin, setFin]       = useState(defaultFin)
-  const [data, setData]     = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError]   = useState(null)
+  const [data, setData]         = useState(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState(null)
+  const [drilldown, setDrilldown] = useState(null) // { categorie, titre }
+
+  function handleCategoryClick(categorie) {
+    setDrilldown({ categorie, titre: categorie })
+  }
 
   useEffect(() => {
     if (!debut || !fin) return
@@ -133,7 +139,7 @@ export default function PnL() {
                   <tr className={styles.subSectionHeader}>
                     <td colSpan={2}>Chiffre d'affaires</td>
                   </tr>
-                  <BucketRows bucket={data.ca} />
+                  <BucketRows bucket={data.ca} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total chiffre d'affaires" total={data.ca.total} />
                 </>
               )}
@@ -144,7 +150,7 @@ export default function PnL() {
                   <tr className={styles.subSectionHeader}>
                     <td colSpan={2}>Autres produits d'exploitation</td>
                   </tr>
-                  <BucketRows bucket={data.autres_produits_expl} />
+                  <BucketRows bucket={data.autres_produits_expl} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total autres produits" total={data.autres_produits_expl.total} />
                 </>
               )}
@@ -169,7 +175,7 @@ export default function PnL() {
                   <tr className={styles.subSectionHeader}>
                     <td colSpan={2}>Achats consommés</td>
                   </tr>
-                  <BucketRows bucket={data.achats} />
+                  <BucketRows bucket={data.achats} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total achats consommés" total={data.achats.total} isCharge />
                 </>
               )}
@@ -180,7 +186,7 @@ export default function PnL() {
                   <tr className={styles.subSectionHeader}>
                     <td colSpan={2}>Charges externes</td>
                   </tr>
-                  <BucketRows bucket={data.charges_externes} />
+                  <BucketRows bucket={data.charges_externes} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total charges externes" total={data.charges_externes.total} isCharge />
                 </>
               )}
@@ -198,7 +204,7 @@ export default function PnL() {
                   <tr className={styles.subSectionHeader}>
                     <td colSpan={2}>Impôts, taxes et versements assimilés</td>
                   </tr>
-                  <BucketRows bucket={data.impots_taxes} />
+                  <BucketRows bucket={data.impots_taxes} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total impôts et taxes" total={data.impots_taxes.total} isCharge />
                 </>
               )}
@@ -209,7 +215,7 @@ export default function PnL() {
                   <tr className={styles.subSectionHeader}>
                     <td colSpan={2}>Charges de personnel</td>
                   </tr>
-                  <BucketRows bucket={data.charges_personnel} />
+                  <BucketRows bucket={data.charges_personnel} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total charges de personnel" total={data.charges_personnel.total} isCharge />
                 </>
               )}
@@ -227,7 +233,7 @@ export default function PnL() {
                   <tr className={styles.subSectionHeader}>
                     <td colSpan={2}>Dotations aux amortissements</td>
                   </tr>
-                  <BucketRows bucket={data.dotations} />
+                  <BucketRows bucket={data.dotations} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total dotations" total={data.dotations.total} isCharge />
                 </>
               )}
@@ -259,13 +265,13 @@ export default function PnL() {
                   </tr>
                   {data.produits_financiers.total > 0 && (
                     <>
-                      <BucketRows bucket={data.produits_financiers} />
+                      <BucketRows bucket={data.produits_financiers} onCategoryClick={handleCategoryClick} />
                       <SubtotalRow label="Total produits financiers" total={data.produits_financiers.total} />
                     </>
                   )}
                   {data.charges_financieres.total > 0 && (
                     <>
-                      <BucketRows bucket={data.charges_financieres} />
+                      <BucketRows bucket={data.charges_financieres} onCategoryClick={handleCategoryClick} />
                       <SubtotalRow label="Total charges financières" total={data.charges_financieres.total} isCharge />
                     </>
                   )}
@@ -296,13 +302,13 @@ export default function PnL() {
                   </tr>
                   {data.produits_exceptionnels.total > 0 && (
                     <>
-                      <BucketRows bucket={data.produits_exceptionnels} />
+                      <BucketRows bucket={data.produits_exceptionnels} onCategoryClick={handleCategoryClick} />
                       <SubtotalRow label="Total produits exceptionnels" total={data.produits_exceptionnels.total} />
                     </>
                   )}
                   {data.charges_exceptionnelles.total > 0 && (
                     <>
-                      <BucketRows bucket={data.charges_exceptionnelles} />
+                      <BucketRows bucket={data.charges_exceptionnelles} onCategoryClick={handleCategoryClick} />
                       <SubtotalRow label="Total charges exceptionnelles" total={data.charges_exceptionnelles.total} isCharge />
                     </>
                   )}
@@ -321,7 +327,7 @@ export default function PnL() {
                   <tr className={styles.sectionHeader}>
                     <td colSpan={2}>VII – IMPÔT SUR LES BÉNÉFICES</td>
                   </tr>
-                  <BucketRows bucket={data.impot_societes} />
+                  <BucketRows bucket={data.impot_societes} onCategoryClick={handleCategoryClick} />
                   <SubtotalRow label="Total IS" total={data.impot_societes.total} isCharge />
                 </>
               )}
@@ -352,6 +358,14 @@ export default function PnL() {
 
       {data && !loading && isEmpty && (
         <p className={styles.empty}>Aucune donnée P&L sur cette période. Les entrées de capital, emprunts et immobilisations sont au Bilan.</p>
+      )}
+
+      {drilldown && (
+        <TransactionDrilldown
+          titre={drilldown.titre}
+          params={{ categorie: drilldown.categorie, debut, fin }}
+          onClose={() => setDrilldown(null)}
+        />
       )}
     </div>
   )

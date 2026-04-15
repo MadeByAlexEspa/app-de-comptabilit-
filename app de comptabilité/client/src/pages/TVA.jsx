@@ -1,10 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { api, formatEur, formatDate } from '../lib/api.js'
 import styles from './TVA.module.css'
 
-function today() {
-  return new Date().toISOString().slice(0, 7) // YYYY-MM
-}
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const LABEL_TAUX = {
   '20':  '20 % — Taux normal (art. 278 CGI)',
@@ -13,6 +11,144 @@ const LABEL_TAUX = {
   '2.1': '2,1 % — Taux particulier (art. 281 nonies CGI)',
   '0':   '0 % — Exonéré (art. 261 CGI)',
 }
+
+function pad(n) { return String(n).padStart(2, '0') }
+function round2(n) { return Math.round(n * 100) / 100 }
+
+// Recalcule les champs dépendants selon le champ modifié
+function computePatch(field, newValue, row) {
+  if (field === 'montant_ht') {
+    const ht  = newValue
+    const tva = round2(ht * row.taux_tva / 100)
+    return { montant_ht: ht, montant_tva: tva, montant_ttc: round2(ht + tva) }
+  }
+  if (field === 'taux_tva') {
+    const tva = round2(row.montant_ht * newValue / 100)
+    return { taux_tva: newValue, montant_tva: tva, montant_ttc: round2(row.montant_ht + tva) }
+  }
+  if (field === 'montant_ttc') {
+    const ttc = newValue
+    const ht  = round2(ttc / (1 + row.taux_tva / 100))
+    const tva = round2(ttc - ht)
+    return { montant_ht: ht, montant_tva: tva, montant_ttc: ttc }
+  }
+  return {}
+}
+
+function lastDayOfMonth(year, month) {
+  return new Date(Number(year), Number(month), 0).getDate()
+}
+
+function currentYear() { return new Date().getFullYear() }
+function currentMonth() { return new Date().getMonth() + 1 } // 1-12
+
+// Compute debut/fin from mode + selection
+function getRange(mode, year, sub) {
+  const y = Number(year)
+  if (mode === 'mois') {
+    const [yr, mo] = sub.split('-')
+    return {
+      debut: `${yr}-${mo}-01`,
+      fin:   `${yr}-${mo}-${pad(lastDayOfMonth(yr, mo))}`,
+    }
+  }
+  if (mode === 'trimestre') {
+    const q = Number(sub) // 1-4
+    const startM = (q - 1) * 3 + 1
+    const endM   = q * 3
+    return {
+      debut: `${y}-${pad(startM)}-01`,
+      fin:   `${y}-${pad(endM)}-${pad(lastDayOfMonth(y, endM))}`,
+    }
+  }
+  if (mode === 'semestre') {
+    return Number(sub) === 1
+      ? { debut: `${y}-01-01`, fin: `${y}-06-30` }
+      : { debut: `${y}-07-01`, fin: `${y}-12-31` }
+  }
+  // année
+  return { debut: `${y}-01-01`, fin: `${y}-12-31` }
+}
+
+function periodLabel(mode, year, sub) {
+  if (mode === 'mois') {
+    const [yr, mo] = sub.split('-')
+    return new Date(Number(yr), Number(mo) - 1, 1)
+      .toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })
+  }
+  if (mode === 'trimestre') return `T${sub} ${year}`
+  if (mode === 'semestre')  return `S${sub} ${year}`
+  return String(year)
+}
+
+const TAUX_EDIT_OPTIONS = [20, 10, 5.5, 2.1, 0]
+
+// ── EditableCell ──────────────────────────────────────────────────────────────
+
+function EditableCell({ value, field, row, align, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [draft,   setDraft]   = useState('')
+  const inputRef = useRef(null)
+
+  function start() {
+    setDraft(field === 'taux_tva' ? String(value) : String(value))
+    setEditing(true)
+  }
+
+  function commit() {
+    const parsed = parseFloat(String(draft).replace(',', '.'))
+    if (!isNaN(parsed) && parsed !== value) onSave(field, parsed, row)
+    setEditing(false)
+  }
+
+  useEffect(() => {
+    if (editing && inputRef.current) inputRef.current.focus()
+  }, [editing])
+
+  if (editing && field === 'taux_tva') {
+    return (
+      <td className={align}>
+        <select
+          ref={inputRef}
+          className={styles.editSelect}
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={() => { onSave(field, parseFloat(draft), row); setEditing(false) }}
+        >
+          {TAUX_EDIT_OPTIONS.map(t => (
+            <option key={t} value={t}>{t} %</option>
+          ))}
+        </select>
+      </td>
+    )
+  }
+
+  if (editing) {
+    return (
+      <td className={align}>
+        <input
+          ref={inputRef}
+          className={styles.editInput}
+          type="number"
+          step="0.01"
+          min="0"
+          value={draft}
+          onChange={e => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
+        />
+      </td>
+    )
+  }
+
+  return (
+    <td className={`${align} ${styles.editableCell}`} onClick={start} title="Cliquer pour modifier">
+      {field === 'taux_tva' ? `${value} %` : formatEur(value)}
+    </td>
+  )
+}
+
+// ── Sub-components ────────────────────────────────────────────────────────────
 
 function TauxTable({ par_taux }) {
   const lignes = Object.entries(par_taux).filter(([, v]) => v.base_ht !== 0 || v.tva !== 0)
@@ -29,7 +165,7 @@ function TauxTable({ par_taux }) {
       <tbody>
         {lignes.map(([taux, { base_ht, tva }]) => (
           <tr key={taux}>
-            <td>{LABEL_TAUX[taux] || `${taux}%`}</td>
+            <td>{LABEL_TAUX[taux] || `${taux} %`}</td>
             <td className={styles.right}>{formatEur(base_ht)}</td>
             <td className={styles.right}><strong>{formatEur(tva)}</strong></td>
           </tr>
@@ -39,38 +175,165 @@ function TauxTable({ par_taux }) {
   )
 }
 
+// ── Period picker ─────────────────────────────────────────────────────────────
+
+function PeriodPicker({ mode, setMode, year, setYear, sub, setSub }) {
+  const y = currentYear()
+  const years = Array.from({ length: 6 }, (_, i) => y - i)
+
+  return (
+    <div className={styles.periodPicker}>
+      {/* Mode buttons */}
+      <div className={styles.modeRow}>
+        {['mois', 'trimestre', 'semestre', 'année'].map(m => (
+          <button
+            key={m}
+            className={`${styles.modeBtn} ${mode === m ? styles.modeBtnActive : ''}`}
+            onClick={() => setMode(m)}
+          >
+            {m.charAt(0).toUpperCase() + m.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Sub-picker */}
+      <div className={styles.subPicker}>
+        {/* Year selector — shown for all modes except mois */}
+        {mode !== 'mois' && (
+          <select
+            className={styles.yearSelect}
+            value={year}
+            onChange={e => setYear(Number(e.target.value))}
+          >
+            {years.map(yr => <option key={yr} value={yr}>{yr}</option>)}
+          </select>
+        )}
+
+        {mode === 'mois' && (
+          <input
+            type="month"
+            className={styles.input}
+            value={sub}
+            onChange={e => setSub(e.target.value)}
+          />
+        )}
+
+        {mode === 'trimestre' && (
+          <div className={styles.subBtns}>
+            {[1, 2, 3, 4].map(q => (
+              <button
+                key={q}
+                className={`${styles.subBtn} ${Number(sub) === q ? styles.subBtnActive : ''}`}
+                onClick={() => setSub(q)}
+              >
+                T{q}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {mode === 'semestre' && (
+          <div className={styles.subBtns}>
+            {[1, 2].map(s => (
+              <button
+                key={s}
+                className={`${styles.subBtn} ${Number(sub) === s ? styles.subBtnActive : ''}`}
+                onClick={() => setSub(s)}
+              >
+                S{s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
+
+const LS_KEY = 'tva_periode'
+
+function loadSaved() {
+  try {
+    const s = JSON.parse(localStorage.getItem(LS_KEY))
+    if (s?.mode) return s
+  } catch (_) {}
+  return {
+    mode: 'mois',
+    year: currentYear(),
+    sub:  `${currentYear()}-${pad(currentMonth())}`,
+  }
+}
+
 export default function TVA() {
-  const [mois, setMois] = useState(today())
-  const [data, setData] = useState(null)
+  const saved = loadSaved()
+  const [mode, setMode] = useState(saved.mode)
+  const [year, setYear] = useState(saved.year)
+  const [sub,  setSub]  = useState(saved.sub)
+
+  const [data,    setData]    = useState(null)
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [error,   setError]   = useState(null)
+
+  // Persist on change
+  useEffect(() => {
+    localStorage.setItem(LS_KEY, JSON.stringify({ mode, year, sub }))
+  }, [mode, year, sub])
+
+  // Reset sub to sensible default when mode changes
+  function handleModeChange(m) {
+    setMode(m)
+    if (m === 'mois') setSub(`${currentYear()}-${pad(currentMonth())}`)
+    else if (m === 'trimestre') setSub(Math.ceil(currentMonth() / 3))
+    else if (m === 'semestre')  setSub(currentMonth() <= 6 ? 1 : 2)
+    // année: no sub needed
+  }
+
+  const { debut, fin } = useMemo(
+    () => getRange(mode, year, sub),
+    [mode, year, sub]
+  )
+
+  async function handleSave(type, id, field, newValue, row) {
+    const patch = computePatch(field, newValue, row)
+    if (!Object.keys(patch).length) return
+    try {
+      if (type === 'facture') await api.updateFacture(id, patch)
+      else                    await api.updateDepense(id, patch)
+      const d = await api.getTVA(debut, fin)
+      setData(d)
+    } catch (e) {
+      console.error('Erreur enregistrement TVA :', e.message)
+    }
+  }
+
+  const label = useMemo(() => periodLabel(mode, year, sub), [mode, year, sub])
 
   useEffect(() => {
-    if (!mois) return
-    setLoading(true)
-    setError(null)
-    api.getTVA(mois)
+    if (!debut || !fin) return
+    setLoading(true); setError(null)
+    api.getTVA(debut, fin)
       .then(d => { setData(d); setLoading(false) })
       .catch(e => { setError(e.message); setLoading(false) })
-  }, [mois])
+  }, [debut, fin])
+
+  const modeLabel = { mois: 'mensuelle', trimestre: 'trimestrielle', semestre: 'semestrielle', 'année': 'annuelle' }
 
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <div>
           <h1 className={styles.pageTitle}>TVA</h1>
-          <p className={styles.pageSubtitle}>Déclaration mensuelle — conforme CA3 (art. 287 CGI)</p>
+          <p className={styles.pageSubtitle}>
+            Déclaration {modeLabel[mode]} — conforme CA3 (art. 287 CGI)
+          </p>
         </div>
-        <div className={styles.monthPicker}>
-          <label htmlFor="mois" className={styles.label}>Mois</label>
-          <input
-            id="mois"
-            type="month"
-            value={mois}
-            onChange={e => setMois(e.target.value)}
-            className={styles.input}
-          />
-        </div>
+        <PeriodPicker
+          mode={mode} setMode={handleModeChange}
+          year={year} setYear={setYear}
+          sub={sub}   setSub={setSub}
+        />
       </div>
 
       {loading && (
@@ -89,12 +352,12 @@ export default function TVA() {
             <div className={styles.kpiCard}>
               <p className={styles.kpiLabel}>TVA Collectée</p>
               <p className={styles.kpiValue}>{formatEur(data.collectee.total_tva)}</p>
-              <p className={styles.kpiSub}>Sur ventes du mois (44571)</p>
+              <p className={styles.kpiSub}>Sur entrées — {label} (44571)</p>
             </div>
             <div className={styles.kpiCard}>
               <p className={styles.kpiLabel}>TVA Déductible</p>
               <p className={styles.kpiValue}>{formatEur(data.deductible.total_tva)}</p>
-              <p className={styles.kpiSub}>Sur achats du mois (44566)</p>
+              <p className={styles.kpiSub}>Sur sorties — {label} (44566)</p>
             </div>
             {data.tva_a_reverser > 0 ? (
               <div className={`${styles.kpiCard} ${styles.kpiCardDue}`}>
@@ -111,11 +374,11 @@ export default function TVA() {
             )}
           </div>
 
-          {/* ── Ventilation par taux (structure CA3) ─────────────────── */}
+          {/* ── Ventilation par taux ─────────────────────────────────── */}
           <div className={styles.ventilationGrid}>
             <div className={styles.ventilationCard}>
               <h2 className={styles.sectionTitle}>
-                TVA Collectée — Ventilation par taux
+                TVA Collectée (entrées) — Ventilation par taux
                 <span className={styles.sectionNote}>Lignes A1–A4 de la CA3</span>
               </h2>
               <TauxTable par_taux={data.collectee.par_taux} />
@@ -127,10 +390,9 @@ export default function TVA() {
                 </div>
               )}
             </div>
-
             <div className={styles.ventilationCard}>
               <h2 className={styles.sectionTitle}>
-                TVA Déductible — Ventilation par taux
+                TVA Déductible (sorties) — Ventilation par taux
                 <span className={styles.sectionNote}>Ligne 20 de la CA3</span>
               </h2>
               <TauxTable par_taux={data.deductible.par_taux} />
@@ -147,18 +409,16 @@ export default function TVA() {
           {/* ── Détail factures ──────────────────────────────────────── */}
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
-              Factures du mois
+              Entrées — {label}
               <span className={styles.sectionCount}>{data.detail_factures.length}</span>
             </h2>
             {data.detail_factures.length === 0 ? (
-              <p className={styles.empty}>Aucune facture ce mois-ci.</p>
+              <p className={styles.empty}>Aucune entrée sur cette période.</p>
             ) : (
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>Numéro</th>
-                    <th>Date</th>
-                    <th>Client</th>
+                    <th>Numéro</th><th>Date</th><th>Tiers</th>
                     <th className={styles.right}>HT</th>
                     <th className={styles.right}>Taux</th>
                     <th className={styles.right}>TVA</th>
@@ -171,10 +431,10 @@ export default function TVA() {
                       <td>{f.numero}</td>
                       <td>{formatDate(f.date)}</td>
                       <td>{f.client}</td>
-                      <td className={styles.right}>{formatEur(f.montant_ht)}</td>
-                      <td className={styles.right}>{f.taux_tva}%</td>
+                      <EditableCell value={f.montant_ht}  field="montant_ht"  row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+                      <EditableCell value={f.taux_tva}    field="taux_tva"    row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                       <td className={styles.right}>{formatEur(f.montant_tva)}</td>
-                      <td className={styles.right}><strong>{formatEur(f.montant_ttc)}</strong></td>
+                      <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                     </tr>
                   ))}
                 </tbody>
@@ -194,18 +454,16 @@ export default function TVA() {
           {/* ── Détail dépenses ──────────────────────────────────────── */}
           <div className={styles.section}>
             <h2 className={styles.sectionTitle}>
-              Dépenses du mois
+              Sorties — {label}
               <span className={styles.sectionCount}>{data.detail_depenses.length}</span>
             </h2>
             {data.detail_depenses.length === 0 ? (
-              <p className={styles.empty}>Aucune dépense ce mois-ci.</p>
+              <p className={styles.empty}>Aucune sortie sur cette période.</p>
             ) : (
               <table className={styles.table}>
                 <thead>
                   <tr>
-                    <th>Date</th>
-                    <th>Fournisseur</th>
-                    <th>Description</th>
+                    <th>Date</th><th>Tiers</th>
                     <th className={styles.right}>HT</th>
                     <th className={styles.right}>Taux</th>
                     <th className={styles.right}>TVA</th>
@@ -217,17 +475,16 @@ export default function TVA() {
                     <tr key={d.id}>
                       <td>{formatDate(d.date)}</td>
                       <td>{d.fournisseur}</td>
-                      <td>{d.description}</td>
-                      <td className={styles.right}>{formatEur(d.montant_ht)}</td>
-                      <td className={styles.right}>{d.taux_tva}%</td>
+                      <EditableCell value={d.montant_ht}  field="montant_ht"  row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+                      <EditableCell value={d.taux_tva}    field="taux_tva"    row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                       <td className={styles.right}>{formatEur(d.montant_tva)}</td>
-                      <td className={styles.right}><strong>{formatEur(d.montant_ttc)}</strong></td>
+                      <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={3}><strong>Total</strong></td>
+                    <td colSpan={2}><strong>Total</strong></td>
                     <td className={styles.right}><strong>{formatEur(data.deductible.total_base_ht)}</strong></td>
                     <td />
                     <td className={styles.right}><strong>{formatEur(data.deductible.total_tva)}</strong></td>

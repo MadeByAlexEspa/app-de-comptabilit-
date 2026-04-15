@@ -18,7 +18,6 @@ function StatutBadge({ statut }) {
 const COLUMNS = [
   { key: 'date', label: 'Date', render: v => formatDate(v) },
   { key: 'fournisseur', label: 'Fournisseur' },
-  { key: 'description', label: 'Description' },
   { key: 'montant_ht', label: 'Montant HT', render: v => formatEur(v) },
   { key: 'montant_tva', label: 'TVA', render: v => formatEur(v) },
   { key: 'montant_ttc', label: 'TTC', render: v => <strong>{formatEur(v)}</strong> },

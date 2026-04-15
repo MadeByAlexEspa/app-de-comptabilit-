@@ -1,15 +1,16 @@
 import { useState, useEffect } from 'react'
 import { api, formatEur } from '../lib/api.js'
 import styles from './Bilan.module.css'
+import TransactionDrilldown from '../components/TransactionDrilldown/TransactionDrilldown.jsx'
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10)
 }
 
-function BilanRow({ label, compte, montant }) {
+function BilanRow({ label, compte, montant, onClick }) {
   if (montant === 0) return null
   return (
-    <tr>
+    <tr className={onClick ? styles.clickableRow : undefined} onClick={onClick}>
       <td className={styles.rowLabel}>
         {label}
         {compte && <span className={styles.compte}>{compte}</span>}
@@ -19,9 +20,9 @@ function BilanRow({ label, compte, montant }) {
   )
 }
 
-function ImmoCatRows({ par_categorie }) {
+function ImmoCatRows({ par_categorie, onCategoryClick }) {
   return Object.entries(par_categorie).map(([cat, montant]) => (
-    <tr key={cat} className={styles.subRow}>
+    <tr key={cat} className={`${styles.subRow} ${styles.clickableRow}`} onClick={() => onCategoryClick(cat)}>
       <td className={styles.subLabel}>{cat}</td>
       <td className={styles.right}>{formatEur(montant)}</td>
     </tr>
@@ -43,10 +44,19 @@ function SubTotal({ label, montant }) {
 }
 
 export default function Bilan() {
-  const [date, setDate]   = useState(todayStr())
-  const [data, setData]   = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState(null)
+  const [date, setDate]         = useState(todayStr())
+  const [data, setData]         = useState(null)
+  const [loading, setLoading]   = useState(false)
+  const [error, setError]       = useState(null)
+  const [drilldown, setDrilldown] = useState(null) // { titre, params }
+
+  function openCategorie(cat) {
+    setDrilldown({ titre: cat, params: { categorie: cat, fin: date } })
+  }
+
+  function openFiltre(filtre, titre) {
+    setDrilldown({ titre, params: { filtre, fin: date } })
+  }
 
   useEffect(() => {
     if (!date) return
@@ -107,7 +117,7 @@ export default function Bilan() {
                           <tr className={styles.subGroupHeader}>
                             <td colSpan={2}>Immobilisations incorporelles (Cl. 2)</td>
                           </tr>
-                          <ImmoCatRows par_categorie={data.actif.immobilise.incorporelles.par_categorie} />
+                          <ImmoCatRows par_categorie={data.actif.immobilise.incorporelles.par_categorie} onCategoryClick={openCategorie} />
                           <SubTotal
                             label="Sous-total incorporelles"
                             montant={data.actif.immobilise.incorporelles.total}
@@ -120,7 +130,7 @@ export default function Bilan() {
                           <tr className={styles.subGroupHeader}>
                             <td colSpan={2}>Immobilisations corporelles (Cl. 2)</td>
                           </tr>
-                          <ImmoCatRows par_categorie={data.actif.immobilise.corporelles.par_categorie} />
+                          <ImmoCatRows par_categorie={data.actif.immobilise.corporelles.par_categorie} onCategoryClick={openCategorie} />
                           <SubTotal
                             label="Sous-total corporelles"
                             montant={data.actif.immobilise.corporelles.total}
@@ -141,6 +151,7 @@ export default function Bilan() {
                     label="Créances clients"
                     compte="(41)"
                     montant={data.actif.circulant.creances_clients}
+                    onClick={() => openFiltre('creances_clients', 'Créances clients — factures en attente')}
                   />
                   <BilanRow
                     label="Crédit de TVA"
@@ -230,6 +241,7 @@ export default function Bilan() {
                     label="Dettes fournisseurs"
                     compte="(40)"
                     montant={data.passif.dettes_exploitation.dettes_fournisseurs}
+                    onClick={() => openFiltre('dettes_fournisseurs', 'Dettes fournisseurs — dépenses en attente')}
                   />
                   <BilanRow
                     label="TVA à décaisser"
@@ -269,6 +281,14 @@ export default function Bilan() {
             Capital, emprunts et C/C associés sont cumulés depuis l'origine de l'entreprise.
           </p>
         </>
+      )}
+
+      {drilldown && (
+        <TransactionDrilldown
+          titre={drilldown.titre}
+          params={drilldown.params}
+          onClose={() => setDrilldown(null)}
+        />
       )}
     </div>
   )

@@ -12,7 +12,8 @@ const tvaRouter       = require('./routes/tva');
 const pnlRouter       = require('./routes/pnl');
 const bilanRouter     = require('./routes/bilan');
 const dashboardRouter = require('./routes/dashboard');
-const qontoRouter     = require('./routes/qonto');
+const qontoRouter        = require('./routes/qonto');
+const transactionsRouter = require('./routes/transactions');
 const errorHandler    = require('./middleware/errorHandler');
 const { scheduleAutoSync } = require('./services/qontoService');
 
@@ -40,7 +41,8 @@ app.use('/api/tva',       tvaRouter);
 app.use('/api/pnl',       pnlRouter);
 app.use('/api/bilan',     bilanRouter);
 app.use('/api/dashboard', dashboardRouter);
-app.use('/api/qonto',    qontoRouter);
+app.use('/api/qonto',        qontoRouter);
+app.use('/api/transactions', transactionsRouter);
 
 // ── 404 catch-all ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
