@@ -6,12 +6,20 @@ import Transactions from './pages/Transactions.jsx'
 import TVA from './pages/TVA.jsx'
 import Exercice from './pages/Exercice.jsx'
 import Integrations from './pages/Integrations.jsx'
+import Admin from './pages/Admin.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
   if (!token) return <Navigate to="/login" replace />
+  return children
+}
+
+function AdminRoute({ children }) {
+  const { token, user } = useAuth()
+  if (!token) return <Navigate to="/login" replace />
+  if (user?.role !== 'superadmin') return <Navigate to="/" replace />
   return children
 }
 
@@ -29,6 +37,7 @@ function AppRoutes() {
               <Route path="/tva"          element={<TVA />} />
               <Route path="/exercice"     element={<Exercice />} />
               <Route path="/integrations" element={<Integrations />} />
+              <Route path="/admin"        element={<AdminRoute><Admin /></AdminRoute>} />
               <Route path="*"             element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

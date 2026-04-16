@@ -88,6 +88,21 @@ masterDb.exec(`
   );
 `);
 
+// ── Migrations silencieuses ────────────────────────────────────────────────────
+
+// Migration: last_login_at column
+try { masterDb.exec('ALTER TABLE users ADD COLUMN last_login_at TEXT'); } catch (_) {}
+
+// Migration: promote first user of workspace 1 to superadmin — runs only once
+// (idempotent: only fires if no superadmin exists yet AND workspace 1 has exactly one user)
+const hasSuperAdmin = masterDb.prepare("SELECT COUNT(*) AS cnt FROM users WHERE role = 'superadmin'").get();
+if (hasSuperAdmin && hasSuperAdmin.cnt === 0) {
+  const ws1Users = masterDb.prepare('SELECT COUNT(*) AS cnt FROM users WHERE workspace_id = 1').get();
+  if (ws1Users && ws1Users.cnt === 1) {
+    masterDb.run("UPDATE users SET role = 'superadmin' WHERE workspace_id = 1");
+  }
+}
+
 // ── Seed: workspace 1 + demo user (dev/test only) ─────────────────────────────
 
 if (process.env.NODE_ENV !== 'production') {

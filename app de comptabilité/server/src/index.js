@@ -11,6 +11,8 @@ require('./db/database');
 
 const authRouter      = require('./routes/auth');
 const { requireAuth } = require('./middleware/authMiddleware');
+const adminRouter     = require('./routes/admin');
+const { requireSuperAdmin } = require('./middleware/adminMiddleware');
 
 const facturesRouter  = require('./routes/factures');
 const depensesRouter  = require('./routes/depenses');
@@ -58,6 +60,8 @@ app.use('/api/shine',        requireAuth, shineRouter);
 app.use('/api/transactions', requireAuth, transactionsRouter);
 app.use('/api/ai',           requireAuth, aiRouter);
 
+app.use('/api/admin', requireAuth, requireSuperAdmin, adminRouter);
+
 // ── 404 catch-all ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route introuvable' });
@@ -67,11 +71,14 @@ app.use((_req, res) => {
 app.use(errorHandler);
 
 // ── Start ──────────────────────────────────────────────────────────────────────
-app.listen(PORT, () => {
-  console.log(`[server] Serveur démarré sur http://localhost:${PORT}`);
-  console.log(`[server] Health : http://localhost:${PORT}/api/health`);
-  qontoAutoSync();
-  shineAutoSync();
-});
+// Skip listen() when the module is imported by Jest — supertest binds its own port
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`[server] Serveur démarré sur http://localhost:${PORT}`);
+    console.log(`[server] Health : http://localhost:${PORT}/api/health`);
+    qontoAutoSync();
+    shineAutoSync();
+  });
+}
 
 module.exports = app;

@@ -90,3 +90,13 @@ export function formatDate(dateStr) {
   if (!dateStr) return ''
   return new Date(dateStr).toLocaleDateString('fr-FR')
 }
+
+// ── Admin ─────────────────────────────────────────────────────────────────────
+export const getAdminAnalytics    = ()          => request('/admin/analytics')
+export const getAdminWorkspaces   = ()          => request('/admin/workspaces')
+export const getAdminUsers        = ()          => request('/admin/users')
+export const createAdminUser      = (data)      => request('/admin/users',           { method: 'POST',   body: data })
+export const updateAdminUser      = (id, data)  => request(`/admin/users/${id}`,     { method: 'PUT',    body: data })
+export const deleteAdminUser      = (id)        => request(`/admin/users/${id}`,     { method: 'DELETE' })
+export const createAdminWorkspace = (data)      => request('/admin/workspaces',      { method: 'POST',   body: data })
+export const deleteAdminWorkspace = (id)        => request(`/admin/workspaces/${id}`,{ method: 'DELETE' })

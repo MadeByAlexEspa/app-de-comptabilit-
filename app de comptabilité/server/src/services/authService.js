@@ -68,7 +68,10 @@ async function login({ email, password }) {
     .prepare('SELECT * FROM workspaces WHERE id = ?')
     .get(user.workspace_id);
 
-  return signToken(user, workspace);
+  masterDb.run("UPDATE users SET last_login_at = datetime('now') WHERE id = ?", [user.id]);
+  // Re-fetch user to get updated data
+  const updatedUser = masterDb.prepare('SELECT * FROM users WHERE id = ?').get(user.id);
+  return signToken(updatedUser, workspace);
 }
 
 function signToken(user, workspace) {
