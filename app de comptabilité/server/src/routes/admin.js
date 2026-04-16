@@ -1,13 +1,37 @@
 /**
- * Admin routes — superadmin-only endpoints for workspace and user management.
- * All routes are mounted under /api/admin with requireAuth + requireSuperAdmin.
+ * Admin routes — back-office endpoints (indépendant de l'auth utilisateur).
+ * POST /api/admin/auth/login est public.
+ * Toutes les autres routes requièrent un token admin (adminSession: true).
  */
 const { Router } = require('express');
+const jwt = require('jsonwebtoken');
 const bcrypt = require('bcrypt');
 const masterDb = require('../db/masterDb');
 const { register } = require('../services/authService');
 
 const router = Router();
+
+const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
+const ADMIN_CODE     = process.env.ADMIN_CODE;
+const JWT_SECRET     = process.env.JWT_SECRET;
+
+if (!ADMIN_USERNAME || !ADMIN_CODE) {
+  console.warn('[admin] ADMIN_USERNAME ou ADMIN_CODE manquant dans .env — back-office désactivé');
+}
+
+// ── POST /api/admin/auth/login — public, monté sur /api/admin/auth ────────────
+// Express reçoit ce router sur /api/admin/auth → path interne = /login
+router.post('/login', (req, res) => {
+  const { username, code } = req.body;
+  if (!username || !code) {
+    return res.status(400).json({ error: 'username et code requis' });
+  }
+  if (username !== ADMIN_USERNAME || code !== ADMIN_CODE) {
+    return res.status(401).json({ error: 'Identifiants back-office incorrects' });
+  }
+  const token = jwt.sign({ adminSession: true, username }, JWT_SECRET, { expiresIn: '8h' });
+  res.json({ token });
+});
 
 // ── GET /api/admin/analytics ───────────────────────────────────────────────────
 router.get('/analytics', (req, res, next) => {

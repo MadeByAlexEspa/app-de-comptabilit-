@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useAuth } from '../context/AuthContext.jsx'
+import { useNavigate } from 'react-router-dom'
 import * as api from '../lib/api.js'
 import styles from './Admin.module.css'
 
@@ -16,7 +16,7 @@ function relativeTime(dateStr) {
 }
 
 export default function Admin() {
-  const { user } = useAuth()
+  const navigate = useNavigate()
   const [tab, setTab] = useState('overview')
 
   const [analytics, setAnalytics] = useState(null)
@@ -173,6 +173,12 @@ export default function Admin() {
       {/* ── Page header ── */}
       <div className={styles.header}>
         <h1 className={styles.headerTitle}>Administration</h1>
+        <button
+          className={styles.btnGhost}
+          onClick={() => { localStorage.removeItem('admin_token'); navigate('/admin/login') }}
+        >
+          ↩ Déconnexion
+        </button>
       </div>
 
       {/* ── Tabs ── */}
@@ -374,8 +380,6 @@ export default function Admin() {
                         </button>
                         <button
                           className={styles.btnDanger}
-                          disabled={u.id === user?.userId}
-                          title={u.id === user?.userId ? 'Impossible de supprimer votre propre compte' : undefined}
                           onClick={() => handleDeleteUser(u)}
                         >
                           Supprimer

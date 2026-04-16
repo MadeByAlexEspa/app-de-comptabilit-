@@ -6,9 +6,10 @@ import Transactions from './pages/Transactions.jsx'
 import TVA from './pages/TVA.jsx'
 import Exercice from './pages/Exercice.jsx'
 import Integrations from './pages/Integrations.jsx'
-import Admin from './pages/Admin.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
+import Admin from './pages/Admin.jsx'
+import AdminLogin from './pages/AdminLogin.jsx'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -16,18 +17,25 @@ function PrivateRoute({ children }) {
   return children
 }
 
+// Vérifie le token admin (admin_token) — indépendant de l'auth utilisateur
 function AdminRoute({ children }) {
-  const { token, user } = useAuth()
-  if (!token) return <Navigate to="/login" replace />
-  if (user?.role !== 'superadmin') return <Navigate to="/" replace />
+  const token = localStorage.getItem('admin_token')
+  if (!token) return <Navigate to="/admin/login" replace />
   return children
 }
 
 function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login"    element={<Login />} />
-      <Route path="/register" element={<Register />} />
+      {/* ── Public routes ── */}
+      <Route path="/login"       element={<Login />} />
+      <Route path="/register"    element={<Register />} />
+
+      {/* ── Back-office admin (hors Layout utilisateur) ── */}
+      <Route path="/admin/login" element={<AdminLogin />} />
+      <Route path="/admin/*"     element={<AdminRoute><Admin /></AdminRoute>} />
+
+      {/* ── App utilisateur ── */}
       <Route path="/*" element={
         <PrivateRoute>
           <Layout>
@@ -37,7 +45,6 @@ function AppRoutes() {
               <Route path="/tva"          element={<TVA />} />
               <Route path="/exercice"     element={<Exercice />} />
               <Route path="/integrations" element={<Integrations />} />
-              <Route path="/admin"        element={<AdminRoute><Admin /></AdminRoute>} />
               <Route path="*"             element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

@@ -39,17 +39,6 @@ export default function Layout({ children }) {
               <span className={styles.navLabel}>{label}</span>
             </NavLink>
           ))}
-          {user?.role === 'superadmin' && (
-            <NavLink
-              to="/admin"
-              className={({ isActive }) =>
-                `${styles.navItem} ${isActive ? styles.navItemActive : ''}`
-              }
-            >
-              <span className={styles.navIcon}>⚙</span>
-              <span className={styles.navLabel}>Administration</span>
-            </NavLink>
-          )}
         </nav>
         <div className={styles.sidebarFooter}>
           <button

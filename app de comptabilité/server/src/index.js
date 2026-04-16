@@ -9,10 +9,10 @@ require('./db/masterDb');
 // Initialise the workspace DB (creates tables + seed data) on startup
 require('./db/database');
 
-const authRouter      = require('./routes/auth');
-const { requireAuth } = require('./middleware/authMiddleware');
-const adminRouter     = require('./routes/admin');
-const { requireSuperAdmin } = require('./middleware/adminMiddleware');
+const authRouter           = require('./routes/auth');
+const adminRouter          = require('./routes/admin');
+const { requireAuth }      = require('./middleware/authMiddleware');
+const { requireAdminToken } = require('./middleware/adminMiddleware');
 
 const facturesRouter  = require('./routes/factures');
 const depensesRouter  = require('./routes/depenses');
@@ -60,7 +60,9 @@ app.use('/api/shine',        requireAuth, shineRouter);
 app.use('/api/transactions', requireAuth, transactionsRouter);
 app.use('/api/ai',           requireAuth, aiRouter);
 
-app.use('/api/admin', requireAuth, requireSuperAdmin, adminRouter);
+// ── Back-office admin (login public, reste protégé par token admin) ───────────
+app.use('/api/admin/auth', adminRouter);          // POST /auth/login — public
+app.use('/api/admin', requireAdminToken, adminRouter); // toutes les autres routes admin
 
 // ── 404 catch-all ──────────────────────────────────────────────────────────────
 app.use((_req, res) => {

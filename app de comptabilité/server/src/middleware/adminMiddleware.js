@@ -1,12 +1,24 @@
 /**
- * Admin middleware — restricts access to superadmin users only.
+ * Admin middleware — vérifie le token de session back-office.
+ * Indépendant du système d'auth utilisateur (JWT payload adminSession: true).
  */
+const { verifyToken } = require('../services/authService');
 
-function requireSuperAdmin(req, res, next) {
-  if (req.user?.role !== 'superadmin') {
-    return res.status(403).json({ error: 'Accès réservé aux administrateurs' });
+function requireAdminToken(req, res, next) {
+  const header = req.headers['authorization'];
+  if (!header || !header.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Session admin requise' });
   }
-  next();
+  try {
+    const decoded = verifyToken(header.slice(7));
+    if (!decoded.adminSession) {
+      return res.status(403).json({ error: 'Token invalide pour le back-office' });
+    }
+    req.admin = decoded;
+    next();
+  } catch {
+    res.status(401).json({ error: 'Session admin expirée ou invalide' });
+  }
 }
 
-module.exports = { requireSuperAdmin };
+module.exports = { requireAdminToken };

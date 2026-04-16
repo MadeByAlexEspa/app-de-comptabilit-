@@ -91,12 +91,38 @@ export function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('fr-FR')
 }
 
-// ── Admin ─────────────────────────────────────────────────────────────────────
-export const getAdminAnalytics    = ()          => request('/admin/analytics')
-export const getAdminWorkspaces   = ()          => request('/admin/workspaces')
-export const getAdminUsers        = ()          => request('/admin/users')
-export const createAdminUser      = (data)      => request('/admin/users',           { method: 'POST',   body: data })
-export const updateAdminUser      = (id, data)  => request(`/admin/users/${id}`,     { method: 'PUT',    body: data })
-export const deleteAdminUser      = (id)        => request(`/admin/users/${id}`,     { method: 'DELETE' })
-export const createAdminWorkspace = (data)      => request('/admin/workspaces',      { method: 'POST',   body: data })
-export const deleteAdminWorkspace = (id)        => request(`/admin/workspaces/${id}`,{ method: 'DELETE' })
+// ── Admin back-office (token séparé : admin_token) ────────────────────────────
+
+async function adminRequest(path, options = {}) {
+  const token = localStorage.getItem('admin_token')
+  const headers = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch(`${BASE}${path}`, {
+    headers,
+    ...options,
+    body: options.body ? JSON.stringify(options.body) : undefined,
+  })
+
+  if (res.status === 401) {
+    localStorage.removeItem('admin_token')
+    window.location.href = '/admin/login'
+    throw new Error('Session admin expirée')
+  }
+
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({ error: res.statusText }))
+    throw new Error(err.error || res.statusText)
+  }
+  return res.json()
+}
+
+export const adminLogin           = (data)      => adminRequest('/admin/auth/login',  { method: 'POST', body: data })
+export const getAdminAnalytics    = ()          => adminRequest('/admin/analytics')
+export const getAdminWorkspaces   = ()          => adminRequest('/admin/workspaces')
+export const getAdminUsers        = ()          => adminRequest('/admin/users')
+export const createAdminUser      = (data)      => adminRequest('/admin/users',           { method: 'POST',   body: data })
+export const updateAdminUser      = (id, data)  => adminRequest(`/admin/users/${id}`,     { method: 'PUT',    body: data })
+export const deleteAdminUser      = (id)        => adminRequest(`/admin/users/${id}`,     { method: 'DELETE' })
+export const createAdminWorkspace = (data)      => adminRequest('/admin/workspaces',      { method: 'POST',   body: data })
+export const deleteAdminWorkspace = (id)        => adminRequest(`/admin/workspaces/${id}`,{ method: 'DELETE' })
