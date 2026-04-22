@@ -91,10 +91,18 @@ app.use('/api/invite',       inviteRouter);  // accept invite (public)
 app.use('/api/admin/auth', adminLimiter, adminLoginRouter);   // login public uniquement
 app.use('/api/admin',      requireAdminToken, adminRouter);   // toutes les routes protégées
 
-// ── 404 catch-all ──────────────────────────────────────────────────────────────
-app.use((_req, res) => {
-  res.status(404).json({ error: 'Route introuvable' });
-});
+// ── Frontend statique (production uniquement) ─────────────────────────────────
+if (process.env.NODE_ENV === 'production') {
+  const path = require('path');
+  const distPath = path.join(__dirname, '../../client/dist');
+  app.use(express.static(distPath));
+  app.get('*', (_req, res) => res.sendFile(path.join(distPath, 'index.html')));
+} else {
+  // ── 404 catch-all (dev) ───────────────────────────────────────────────────
+  app.use((_req, res) => {
+    res.status(404).json({ error: 'Route introuvable' });
+  });
+}
 
 // ── Error handler (must be last) ───────────────────────────────────────────────
 app.use(errorHandler);
