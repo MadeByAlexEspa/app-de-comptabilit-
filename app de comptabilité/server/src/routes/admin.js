@@ -14,7 +14,7 @@ const ADMIN_CODE     = process.env.ADMIN_CODE;
 const JWT_SECRET     = process.env.JWT_SECRET;
 
 if (!ADMIN_USERNAME || !ADMIN_CODE) {
-  throw new Error('[admin] ADMIN_USERNAME et ADMIN_CODE sont requis dans .env');
+  console.warn('[admin] ADMIN_USERNAME ou ADMIN_CODE manquant — back-office désactivé');
 }
 
 // ── Router public : login uniquement ─────────────────────────────────────────

@@ -3,6 +3,6 @@
   "version": "1.0.0",
   "scripts": {
     "build": "cd \"app de comptabilité/server\" && npm install && cd ../client && npm install && npm run build",
-    "start": "cd \"app de comptabilité/server\" && node src/index.js"
+    "start": "node server.js"
   }
 }

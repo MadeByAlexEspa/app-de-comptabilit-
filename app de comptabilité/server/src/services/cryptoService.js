@@ -2,9 +2,9 @@ const crypto = require('crypto')
 
 const _rawKey = process.env.ENCRYPTION_MASTER_KEY || '';
 if (_rawKey && _rawKey.length < 64) {
-  throw new Error('[crypto] ENCRYPTION_MASTER_KEY trop courte (minimum 64 caractères hex / 32 octets).');
+  console.warn('[crypto] ENCRYPTION_MASTER_KEY trop courte — chiffrement désactivé.');
 }
-const MASTER_KEY = _rawKey ? Buffer.from(_rawKey, 'hex') : null
+const MASTER_KEY = (_rawKey && _rawKey.length >= 64) ? Buffer.from(_rawKey, 'hex') : null
 
 function deriveKey(workspaceId) {
   if (!MASTER_KEY) throw new Error('Encryption non configurée (ENCRYPTION_MASTER_KEY manquante)');
