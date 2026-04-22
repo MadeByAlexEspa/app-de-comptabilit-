@@ -70,6 +70,10 @@ export const api = {
   getQontoSyncLog:   ()       => request('/qonto/sync/log'),
   resetQontoData:    ()       => request('/qonto/reset',    { method: 'POST' }),
 
+  // Notes de frais Qonto
+  getExpenseNotes:    ()           => request('/qonto/expense-notes'),
+  deleteExpenseNote:  (id)         => request(`/qonto/expense-notes/${id}`, { method: 'DELETE' }),
+
   // IA
   getAIConfig:    ()         => request('/ai/config'),
   saveAIConfig:   (data)     => request('/ai/config', { method: 'POST',   body: data }),
@@ -80,7 +84,55 @@ export const api = {
   authRegister: (data) => request('/auth/register', { method: 'POST', body: data }),
   authLogin:    (data) => request('/auth/login',    { method: 'POST', body: data }),
   authMe:       ()     => request('/auth/me'),
+
+  // Workspace
+  getWorkspace:        ()     => request('/workspace'),
+  renameWorkspace:     (name) => request('/workspace/name',       { method: 'PATCH',  body: { name } }),
+  removeWorkspaceUser: (id)   => request(`/workspace/users/${id}`,{ method: 'DELETE' }),
+  deleteWorkspace:     ()     => request('/workspace',            { method: 'DELETE' }),
+
+  // Invitations par token
+  createInvitation: (email) => request('/workspace/invitations',      { method: 'POST',   body: { email } }),
+  getInvitations:   ()      => request('/workspace/invitations'),
+  cancelInvitation: (id)    => request(`/workspace/invitations/${id}`, { method: 'DELETE' }),
 }
+
+// ── Upload multipart (FormData — ne pas passer Content-Type) ─────────────────
+
+export async function uploadExpenseNote(formData) {
+  const token = localStorage.getItem('auth_token')
+  const headers = {}
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch('/api/qonto/expense-notes', {
+    method: 'POST',
+    headers,
+    body: formData,
+  })
+
+  if (res.status === 401) {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+    throw new Error('Session expirée')
+  }
+
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || res.statusText)
+  return data
+}
+
+// ── Routes publiques (sans JWT) ───────────────────────────────────────────────
+
+export const checkInviteToken = (token) =>
+  fetch(`/api/invite/${token}`)
+    .then(r => r.json().then(d => r.ok ? d : Promise.reject(new Error(d.error))))
+
+export const acceptInvite = (token, password) =>
+  fetch(`/api/invite/${token}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  }).then(r => r.json().then(d => r.ok ? d : Promise.reject(new Error(d.error))))
 
 export function formatEur(amount) {
   return new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'EUR' }).format(amount ?? 0)

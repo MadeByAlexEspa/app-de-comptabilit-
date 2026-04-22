@@ -1,3 +1,5 @@
+const { decryptRows, FACTURE_FIELDS, DEPENSE_FIELDS } = require('./cryptoService');
+
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
@@ -114,9 +116,15 @@ function buildBucket(rows, catSet) {
  * @param {string} debut - "YYYY-MM-DD"
  * @param {string} fin   - "YYYY-MM-DD"
  */
-function getPnlReport(db, debut, fin) {
-  const factures = db.prepare('SELECT * FROM factures WHERE date >= ? AND date <= ?').all(debut, fin);
-  const depenses = db.prepare('SELECT * FROM depenses WHERE date >= ? AND date <= ?').all(debut, fin);
+function getPnlReport(db, debut, fin, workspaceId) {
+  const factures = decryptRows(
+    db.prepare('SELECT * FROM factures WHERE date >= ? AND date <= ?').all(debut, fin),
+    FACTURE_FIELDS, workspaceId
+  );
+  const depenses = decryptRows(
+    db.prepare('SELECT * FROM depenses WHERE date >= ? AND date <= ?').all(debut, fin),
+    DEPENSE_FIELDS, workspaceId
+  );
 
   // ── Produits ───────────────────────────────────────────────────────────────
   const ca                     = buildBucket(factures, CAT_CA);

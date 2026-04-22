@@ -1,4 +1,5 @@
 const { Router } = require('express');
+const multer = require('multer');
 const { getWorkspaceDb } = require('../db/database');
 const {
   getAllAccounts,
@@ -9,7 +10,50 @@ const {
   getConfig,
   getOrganization,
   runSync,
+  uploadAttachment,
 } = require('../services/qontoService');
+
+const ALLOWED_MIMES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'application/pdf']);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB max
+  fileFilter: (_req, file, cb) => {
+    cb(null, ALLOWED_MIMES.has(file.mimetype));
+  },
+});
+
+function sanitizeFilename(name) {
+  return (name || 'fichier')
+    .replace(/[/\\?%*:|"<>]/g, '_')
+    .slice(0, 200);
+}
+
+// Validate file content via magic bytes (not just Content-Type header)
+function validateMagicBytes(buffer, declaredMime) {
+  if (buffer.length < 4) return false;
+  // JPEG: FF D8 FF
+  if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return declaredMime === 'image/jpeg';
+  }
+  // PNG: 89 50 4E 47
+  if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+    return declaredMime === 'image/png';
+  }
+  // PDF: 25 50 44 46 (% P D F)
+  if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) {
+    return declaredMime === 'application/pdf';
+  }
+  // WebP: RIFF....WEBP
+  if (buffer.length >= 12 &&
+      buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0x46 && buffer[3] === 0x46 &&
+      buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) {
+    return declaredMime === 'image/webp';
+  }
+  // HEIC: complex container — allow through if declared as heic (mobile camera)
+  if (declaredMime === 'image/heic') return true;
+  return false;
+}
 
 const router = Router();
 
@@ -244,6 +288,87 @@ router.post('/reset', (req, res, next) => {
     db.run('UPDATE qonto_config SET last_sync_at = NULL WHERE id = 1');
     db.run('UPDATE qonto_accounts SET last_sync_at = NULL');
     res.json({ ok: true, message: 'Toutes les transactions ont été supprimées. Le prochain sync Qonto récupérera tout depuis le début.' });
+  } catch (e) { next(e); }
+});
+
+// ── Expense notes (notes de frais) ───────────────────────────────────────────
+
+// GET /api/qonto/expense-notes — list all expense notes
+router.get('/expense-notes', (req, res, next) => {
+  try {
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const notes = db.prepare(`
+      SELECT n.*, a.name AS account_name
+      FROM qonto_expense_notes n
+      LEFT JOIN qonto_accounts a ON a.id = n.account_id
+      ORDER BY n.created_at DESC
+    `).all();
+    res.json({ notes });
+  } catch (e) { next(e); }
+});
+
+// POST /api/qonto/expense-notes — upload photo and send to Qonto
+router.post('/expense-notes', upload.single('file'), async (req, res, next) => {
+  try {
+    const db = getWorkspaceDb(req.user.workspaceId);
+    const file = req.file;
+    if (!file) return res.status(400).json({ error: 'Fichier image ou PDF requis' });
+
+    if (!validateMagicBytes(file.buffer, file.mimetype)) {
+      return res.status(400).json({ error: 'Le contenu du fichier ne correspond pas au type déclaré' });
+    }
+
+    const { description, montant_ttc, account_id } = req.body;
+    const parsedAccountId = account_id ? parseInt(account_id) : null;
+    const parsedMontant   = montant_ttc ? parseFloat(montant_ttc) : null;
+    const safeFilename    = sanitizeFilename(file.originalname);
+
+    const insertResult = db.prepare(`
+      INSERT INTO qonto_expense_notes (original_name, description, montant_ttc, account_id, status)
+      VALUES (?, ?, ?, ?, 'pending')
+    `).run(safeFilename, description || null, parsedMontant, parsedAccountId);
+
+    const noteId = insertResult.lastInsertRowid;
+    db.run('UPDATE qonto_expense_notes SET status=? WHERE id=?', ['sending', noteId]);
+
+    try {
+      const account = parsedAccountId ? getAccount(db, parsedAccountId) : getConfig(db);
+      if (!account?.organization_slug || !account?.secret_key) {
+        throw new Error('Compte Qonto non configuré (clé API manquante)');
+      }
+
+      const data = await uploadAttachment(
+        account.organization_slug,
+        account.secret_key,
+        file.buffer,
+        safeFilename,
+        file.mimetype
+      );
+
+      const attachmentId = data.attachment?.id ?? data.id ?? null;
+      const now = new Date().toISOString();
+      db.run(
+        'UPDATE qonto_expense_notes SET status=?, qonto_attachment_id=?, sent_at=? WHERE id=?',
+        ['sent', attachmentId, now, noteId]
+      );
+
+      res.json({ ok: true, id: noteId, attachment_id: attachmentId });
+    } catch (uploadErr) {
+      db.run(
+        'UPDATE qonto_expense_notes SET status=?, error_message=? WHERE id=?',
+        ['error', uploadErr.message, noteId]
+      );
+      res.json({ ok: false, id: noteId, error: uploadErr.message });
+    }
+  } catch (e) { next(e); }
+});
+
+// DELETE /api/qonto/expense-notes/:id
+router.delete('/expense-notes/:id', (req, res, next) => {
+  try {
+    const db = getWorkspaceDb(req.user.workspaceId);
+    db.run('DELETE FROM qonto_expense_notes WHERE id=?', [parseInt(req.params.id)]);
+    res.json({ ok: true });
   } catch (e) { next(e); }
 });
 

@@ -5,7 +5,9 @@ const AuthContext = createContext(null)
 
 function decodeToken(token) {
   try {
-    return JSON.parse(atob(token.split('.')[1]))
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    if (payload.exp && payload.exp < Date.now() / 1000) return null
+    return payload
   } catch {
     return null
   }
@@ -32,8 +34,12 @@ export function AuthProvider({ children }) {
     navigate('/login')
   }
 
+  function updateUser(fields) {
+    setUser(prev => prev ? { ...prev, ...fields } : prev)
+  }
+
   return (
-    <AuthContext.Provider value={{ token, user, login, logout }}>
+    <AuthContext.Provider value={{ token, user, login, logout, updateUser }}>
       {children}
     </AuthContext.Provider>
   )

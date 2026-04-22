@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { api, formatEur, formatDate } from '../lib/api.js'
+import Spinner from '../components/Spinner/Spinner.jsx'
 import styles from './TVA.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -15,13 +16,8 @@ const LABEL_TAUX = {
 function pad(n) { return String(n).padStart(2, '0') }
 function round2(n) { return Math.round(n * 100) / 100 }
 
-// Recalcule les champs dépendants selon le champ modifié
+// Recalcule les champs dépendants selon le champ modifié (TTC est la valeur de référence)
 function computePatch(field, newValue, row) {
-  if (field === 'montant_ht') {
-    const ht  = newValue
-    const tva = round2(ht * row.taux_tva / 100)
-    return { montant_ht: ht, montant_tva: tva, montant_ttc: round2(ht + tva) }
-  }
   if (field === 'taux_tva') {
     // TTC est la valeur de référence (montant bancaire réel) ; HT est déduit du taux
     const ttc = row.montant_ttc
@@ -370,7 +366,7 @@ export default function TVA() {
 
       {loading && (
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Spinner />
           <p>Calcul de la TVA…</p>
         </div>
       )}
@@ -489,7 +485,7 @@ export default function TVA() {
                       <tr key={f.id}>
                         <td>{formatDate(f.date)}</td>
                         <td>{f.client}</td>
-                        <EditableCell value={f.montant_ht}  field="montant_ht"  row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+                        <td className={styles.right}>{formatEur(f.montant_ht)}</td>
                         <EditableCell value={f.taux_tva}    field="taux_tva"    row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <td className={styles.right}>{formatEur(f.montant_tva)}</td>
                         <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
@@ -561,7 +557,7 @@ export default function TVA() {
                       <tr key={d.id}>
                         <td>{formatDate(d.date)}</td>
                         <td>{d.fournisseur}</td>
-                        <EditableCell value={d.montant_ht}  field="montant_ht"  row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+                        <td className={styles.right}>{formatEur(d.montant_ht)}</td>
                         <EditableCell value={d.taux_tva}    field="taux_tva"    row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <td className={styles.right}>{formatEur(d.montant_tva)}</td>
                         <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />

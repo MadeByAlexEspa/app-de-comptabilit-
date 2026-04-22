@@ -1,7 +1,7 @@
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: rgba(26,26,26,0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -16,9 +16,10 @@
 }
 
 .modal {
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  background: #fff;
+  border: 1.5px solid #1a1a1a;
+  box-shadow: 5px 5px 0 #1a1a1a;
+  border-radius: 2px;
   display: flex;
   flex-direction: column;
   max-height: 90vh;
@@ -45,6 +46,7 @@
 }
 
 .title {
+  font-family: 'Special Elite', serif;
   font-size: 17px;
   font-weight: 600;
   color: #111827;

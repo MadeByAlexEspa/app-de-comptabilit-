@@ -34,9 +34,10 @@
 }
 
 .pageTitle {
+  font-family: 'Special Elite', serif;
   font-size: 24px;
   font-weight: 700;
-  color: #111827;
+  color: #1a1a1a;
 }
 
 .pageSubtitle {
@@ -52,9 +53,10 @@
 }
 
 .label {
+  font-family: 'Courier Prime', monospace;
   font-size: 12px;
   font-weight: 600;
-  color: #374151;
+  color: #4a4a4a;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }

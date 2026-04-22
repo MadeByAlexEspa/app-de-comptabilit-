@@ -276,6 +276,26 @@ function scheduleAutoSync() {
   }, 60 * 60 * 1000);
 }
 
+// ── Expense note attachment upload ────────────────────────────────────────────
+
+async function uploadAttachment(slug, secretKey, fileBuffer, filename, mimeType) {
+  const formData = new FormData();
+  const blob = new Blob([fileBuffer], { type: mimeType });
+  formData.append('file', blob, filename);
+
+  const res = await fetch(`${QONTO_BASE}/attachments`, {
+    method: 'POST',
+    headers: { Authorization: `${slug}:${secretKey}` },
+    body: formData,
+  });
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.message || body.error || `Qonto HTTP ${res.status}`);
+  }
+  return res.json();
+}
+
 module.exports = {
   getAllAccounts,
   getAccount,
@@ -286,4 +306,5 @@ module.exports = {
   getOrganization,
   runSync,
   scheduleAutoSync,
+  uploadAttachment,
 };

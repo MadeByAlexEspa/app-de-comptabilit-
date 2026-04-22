@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import * as api from '../lib/api.js'
+import Modal from '../components/Modal/Modal.jsx'
 import styles from './Admin.module.css'
 
 function relativeTime(dateStr) {
@@ -43,6 +44,10 @@ export default function Admin() {
   const [editError, setEditError] = useState(null)
   const [editLoading, setEditLoading] = useState(false)
 
+  // Confirmation modals
+  const [confirmDeleteWs,   setConfirmDeleteWs]   = useState(null)
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState(null)
+
   useEffect(() => {
     loadAll()
   }, [])
@@ -84,12 +89,16 @@ export default function Admin() {
   }
 
   async function handleDeleteWorkspace(ws) {
-    if (!window.confirm('Supprimer ce workspace et tous ses utilisateurs ?')) return
+    setConfirmDeleteWs(ws)
+  }
+  async function confirmDeleteWorkspaceFn() {
     try {
-      await api.deleteAdminWorkspace(ws.id)
+      await api.deleteAdminWorkspace(confirmDeleteWs.id)
+      setConfirmDeleteWs(null)
       await loadAll()
     } catch (err) {
-      alert(err.message)
+      setConfirmDeleteWs(null)
+      setLoadError(err.message)
     }
   }
 
@@ -134,12 +143,15 @@ export default function Admin() {
   }
 
   async function handleDeleteUser(u) {
-    if (!window.confirm(`Supprimer l'utilisateur ${u.email} ?`)) return
+    setConfirmDeleteUser(u)
+  }
+  async function confirmDeleteUserFn() {
     try {
-      await api.deleteAdminUser(u.id)
+      await api.deleteAdminUser(confirmDeleteUser.id)
+      setConfirmDeleteUser(null)
       await loadAll()
     } catch (err) {
-      alert(err.message)
+      setConfirmDeleteUser(null)
     }
   }
 
@@ -398,16 +410,8 @@ export default function Admin() {
           MODAL — Nouveau workspace
       ══════════════════════════════════════════════════════════════════════ */}
       {showNewWs && (
-        <div
-          className={styles.overlay}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-new-ws-title"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowNewWs(false) }}
-        >
-          <form className={styles.modal} onSubmit={handleCreateWorkspace}>
-            <h2 id="modal-new-ws-title" className={styles.modalTitle}>Nouveau workspace</h2>
-
+        <Modal title="Nouveau workspace" onClose={() => setShowNewWs(false)} size="medium">
+          <form className={styles.modalForm} onSubmit={handleCreateWorkspace}>
             {wsError && <div className={styles.error} role="alert">{wsError}</div>}
 
             <div className={styles.field}>
@@ -447,35 +451,19 @@ export default function Admin() {
             </div>
 
             <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.btnGhost}
-                onClick={() => setShowNewWs(false)}
-              >
-                Annuler
-              </button>
-              <button type="submit" className={styles.btnPrimary} disabled={wsLoading}>
-                {wsLoading ? 'Création…' : 'Créer'}
-              </button>
+              <button type="button" className={styles.btnGhost} onClick={() => setShowNewWs(false)}>Annuler</button>
+              <button type="submit" className={styles.btnPrimary} disabled={wsLoading}>{wsLoading ? 'Création…' : 'Créer'}</button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           MODAL — Nouvel utilisateur
       ══════════════════════════════════════════════════════════════════════ */}
       {showNewUser && (
-        <div
-          className={styles.overlay}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-new-user-title"
-          onClick={(e) => { if (e.target === e.currentTarget) setShowNewUser(false) }}
-        >
-          <form className={styles.modal} onSubmit={handleCreateUser}>
-            <h2 id="modal-new-user-title" className={styles.modalTitle}>Nouvel utilisateur</h2>
-
+        <Modal title="Nouvel utilisateur" onClose={() => setShowNewUser(false)} size="medium">
+          <form className={styles.modalForm} onSubmit={handleCreateUser}>
             {newUserError && <div className={styles.error} role="alert">{newUserError}</div>}
 
             <div className={styles.field}>
@@ -532,35 +520,19 @@ export default function Admin() {
             </div>
 
             <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.btnGhost}
-                onClick={() => setShowNewUser(false)}
-              >
-                Annuler
-              </button>
-              <button type="submit" className={styles.btnPrimary} disabled={newUserLoading}>
-                {newUserLoading ? 'Création…' : 'Créer'}
-              </button>
+              <button type="button" className={styles.btnGhost} onClick={() => setShowNewUser(false)}>Annuler</button>
+              <button type="submit" className={styles.btnPrimary} disabled={newUserLoading}>{newUserLoading ? 'Création…' : 'Créer'}</button>
             </div>
           </form>
-        </div>
+        </Modal>
       )}
 
       {/* ══════════════════════════════════════════════════════════════════════
           MODAL — Modifier utilisateur
       ══════════════════════════════════════════════════════════════════════ */}
       {editUser && (
-        <div
-          className={styles.overlay}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="modal-edit-user-title"
-          onClick={(e) => { if (e.target === e.currentTarget) setEditUser(null) }}
-        >
-          <form className={styles.modal} onSubmit={handleEditUser}>
-            <h2 id="modal-edit-user-title" className={styles.modalTitle}>Modifier l'utilisateur</h2>
-
+        <Modal title="Modifier l'utilisateur" onClose={() => setEditUser(null)} size="medium">
+          <form className={styles.modalForm} onSubmit={handleEditUser}>
             {editError && <div className={styles.error} role="alert">{editError}</div>}
 
             <div className={styles.field}>
@@ -601,19 +573,35 @@ export default function Admin() {
             </div>
 
             <div className={styles.modalActions}>
-              <button
-                type="button"
-                className={styles.btnGhost}
-                onClick={() => setEditUser(null)}
-              >
-                Annuler
-              </button>
-              <button type="submit" className={styles.btnPrimary} disabled={editLoading}>
-                {editLoading ? 'Enregistrement…' : 'Enregistrer'}
-              </button>
+              <button type="button" className={styles.btnGhost} onClick={() => setEditUser(null)}>Annuler</button>
+              <button type="submit" className={styles.btnPrimary} disabled={editLoading}>{editLoading ? 'Enregistrement…' : 'Enregistrer'}</button>
             </div>
           </form>
-        </div>
+        </Modal>
+      )}
+
+      {/* ── Confirmation modals ── */}
+      {confirmDeleteWs && (
+        <Modal title="Supprimer ce workspace ?" onClose={() => setConfirmDeleteWs(null)} size="small">
+          <div className={styles.confirmBody}>
+            <p>Supprimer <strong>{confirmDeleteWs.name}</strong> et tous ses utilisateurs ? Cette action est irréversible.</p>
+            <div className={styles.modalActions}>
+              <button className={styles.btnGhost} onClick={() => setConfirmDeleteWs(null)}>Annuler</button>
+              <button className={styles.btnDanger} onClick={confirmDeleteWorkspaceFn}>Supprimer</button>
+            </div>
+          </div>
+        </Modal>
+      )}
+      {confirmDeleteUser && (
+        <Modal title="Supprimer cet utilisateur ?" onClose={() => setConfirmDeleteUser(null)} size="small">
+          <div className={styles.confirmBody}>
+            <p>Supprimer <strong>{confirmDeleteUser.email}</strong> ? Cette action est irréversible.</p>
+            <div className={styles.modalActions}>
+              <button className={styles.btnGhost} onClick={() => setConfirmDeleteUser(null)}>Annuler</button>
+              <button className={styles.btnDanger} onClick={confirmDeleteUserFn}>Supprimer</button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   )

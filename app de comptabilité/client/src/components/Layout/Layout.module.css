@@ -1,21 +1,67 @@
 .wrapper {
   display: flex;
   min-height: 100vh;
-  background: #f9fafb;
+  background: #fafaf8;
+}
+
+.mobileBar {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 52px;
+  background: #1a1a1a;
+  z-index: 200;
+  align-items: center;
+  padding: 0 16px;
+  gap: 12px;
+  border-bottom: 2px solid #333;
+}
+
+.hamburger {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s;
+}
+.hamburger:hover { color: #fafaf8; }
+.hamburger:focus-visible { outline: 2px solid #fafaf8; outline-offset: 2px; }
+
+.mobileBrand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Special Elite', serif;
+  font-size: 16px;
+  color: #fafaf8;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 150;
 }
 
 .sidebar {
   width: 240px;
   min-width: 240px;
-  background: #111827;
+  background: #1a1a1a;
   display: flex;
   flex-direction: column;
   position: fixed;
-  top: 0;
-  left: 0;
+  top: 0; left: 0;
   height: 100vh;
-  z-index: 100;
+  z-index: 160;
   overflow-y: auto;
+  transition: transform 0.25s ease;
+  border-right: 2px solid #333;
 }
 
 .brand {
@@ -23,19 +69,28 @@
   align-items: center;
   gap: 10px;
   padding: 24px 20px 20px;
-  border-bottom: 1px solid #1f2937;
+  border-bottom: 1px solid #333;
 }
 
-.brandIcon {
-  font-size: 22px;
-  line-height: 1;
-}
+.brandIconSvg { color: #e8e8e4; flex-shrink: 0; }
 
 .brandName {
+  font-family: 'Special Elite', serif;
   font-size: 17px;
-  font-weight: 700;
-  color: #f9fafb;
-  letter-spacing: 0.01em;
+  color: #fafaf8;
+  letter-spacing: 0.02em;
+}
+
+.workspace {
+  font-family: 'Courier Prime', monospace;
+  font-size: 11px;
+  color: #9ca3af;
+  padding: 8px 20px 12px;
+  border-bottom: 1px solid #333;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  letter-spacing: 0.04em;
 }
 
 .nav {
@@ -53,53 +108,74 @@
   padding: 10px 20px;
   text-decoration: none;
   color: #9ca3af;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 500;
-  border-radius: 0;
-  transition: background 0.15s, color 0.15s;
   border-left: 3px solid transparent;
+  transition: background 0.15s, color 0.15s;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
 }
 
 .navItem:hover {
-  background: #1f2937;
-  color: #f3f4f6;
+  background: #2a2a2a;
+  color: #fafaf8;
+}
+
+.navItem:focus-visible {
+  outline: 2px solid #e8e8e4;
+  outline-offset: -2px;
 }
 
 .navItemActive {
-  background: #1e3a5f;
-  color: #ffffff;
-  border-left-color: #1a56db;
+  background: #2a2a2a;
+  color: #fafaf8;
+  border-left-color: #e8e8e4;
 }
 
 .navItemActive:hover {
-  background: #1e3a5f;
-  color: #ffffff;
+  background: #2a2a2a;
+  color: #fafaf8;
 }
 
-.navIcon {
-  font-size: 17px;
-  line-height: 1;
-  width: 22px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
-.navLabel {
-  white-space: nowrap;
-}
+.navIcon { flex-shrink: 0; }
+.navLabel { white-space: nowrap; }
 
 .sidebarFooter {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 0 16px;
-  border-top: 1px solid #1f2937;
+  padding: 8px 0 16px;
+  border-top: 1px solid #333;
 }
 
-.footerText {
-  font-size: 11px;
-  color: #4b5563;
-  padding: 0 20px;
+.footerNav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #333;
+  margin-bottom: 8px;
+}
+
+.footerActions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.logoutBtn, .aiBtn {
+  background: none;
+  border: none;
+  width: 100%;
+  text-align: left;
+  font-family: 'Inter', sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.aiBtnActive {
+  background: #2a2a2a !important;
+  color: #e8e8e4 !important;
+  border-left-color: #e8e8e4 !important;
 }
 
 .main {
@@ -108,6 +184,7 @@
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  transition: margin-right 0.2s ease;
 }
 
 .content {
@@ -116,92 +193,24 @@
   width: 100%;
 }
 
-@media (min-width: 1600px) {
-  .sidebar {
-    width: 260px;
-    min-width: 260px;
-  }
-  .main {
-    margin-left: 260px;
-  }
-  .content {
-    padding: 36px 56px;
-  }
-}
+.mainShifted { margin-right: 380px; }
 
-@media (min-width: 2000px) {
-  .content {
-    padding: 40px 80px;
-  }
+@media (min-width: 1600px) {
+  .sidebar { width: 260px; min-width: 260px; }
+  .main { margin-left: 260px; }
+  .content { padding: 36px 56px; }
 }
 
 @media (max-width: 768px) {
-  .sidebar {
-    width: 200px;
-    min-width: 200px;
-  }
-  .main {
-    margin-left: 200px;
-  }
-  .content {
-    padding: 20px 16px;
-  }
+  .mobileBar { display: flex; }
+  .overlay { display: block; }
+  .sidebar { transform: translateX(-100%); top: 52px; height: calc(100vh - 52px); }
+  .sidebarOpen { transform: translateX(0); }
+  .main { margin-left: 0; padding-top: 52px; }
+  .content { padding: 20px 16px; }
+  .mainShifted { margin-right: 0; }
 }
 
-.workspace {
-  font-size: 11px;
-  color: #6b7280;
-  padding: 0 20px 12px;
-  border-bottom: 1px solid #1f2937;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.logoutBtn {
-  background: none;
-  border: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-  color: #9ca3af;
-}
-
-.logoutBtn:hover {
-  background: #1f2937;
-  color: #f3f4f6;
-}
-
-/* ── AI toggle button ─────────────────────────────────────────────────────── */
-
-.aiBtn {
-  background: none;
-  border: none;
-  width: 100%;
-  text-align: left;
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 500;
-}
-
-.aiBtnActive {
-  background: #0f2942 !important;
-  color: #60a5fa !important;
-  border-left-color: #60a5fa !important;
-}
-
-.aiBtnActive:hover {
-  background: #0f2942 !important;
-  color: #60a5fa !important;
-}
-
-/* ── Main area shift when panel is open ───────────────────────────────────── */
-
-.mainShifted {
-  margin-right: 380px;
-  transition: margin-right 0.2s ease;
+@media (prefers-reduced-motion: reduce) {
+  .sidebar, .main { transition: none; }
 }

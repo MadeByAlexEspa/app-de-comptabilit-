@@ -30,8 +30,7 @@ export default function Login() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}>📒</span>
-          <span className={styles.logoName}>Comptabilité</span>
+          <span className={styles.logoName}>✎ Compte-Pote</span>
         </div>
         <h1 className={styles.title}>Connexion</h1>
         <p className={styles.subtitle}>Accédez à votre espace de travail</p>

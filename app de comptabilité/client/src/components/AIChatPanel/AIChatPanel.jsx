@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Sparkles, X, MessageSquare, Key, ArrowUp } from 'lucide-react'
 import { api } from '../../lib/api.js'
 import styles from './AIChatPanel.module.css'
 
@@ -82,16 +83,18 @@ export default function AIChatPanel({ open, onClose }) {
     <div className={styles.panel}>
       <div className={styles.header}>
         <div className={styles.headerLeft}>
-          <span className={styles.headerIcon}>✦</span>
+          <Sparkles size={16} color="#60a5fa" aria-hidden="true" />
           <span className={styles.headerTitle}>ComptIA</span>
         </div>
-        <button className={styles.closeBtn} onClick={onClose} aria-label="Fermer">×</button>
+        <button className={styles.closeBtn} onClick={onClose} aria-label="Fermer">
+          <X size={18} aria-hidden="true" />
+        </button>
       </div>
 
       <div className={styles.body}>
         {configured === false ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>🔑</div>
+            <div className={styles.emptyIcon}><Key size={36} color="#9ca3af" aria-hidden="true" /></div>
             <p className={styles.emptyTitle}>Agent non configuré</p>
             <p className={styles.emptyText}>
               Ajoutez votre clé API dans{' '}
@@ -101,7 +104,7 @@ export default function AIChatPanel({ open, onClose }) {
           </div>
         ) : messages.length === 0 && !loading ? (
           <div className={styles.emptyState}>
-            <div className={styles.emptyIcon}>💬</div>
+            <div className={styles.emptyIcon}><MessageSquare size={36} color="#9ca3af" aria-hidden="true" /></div>
             <p className={styles.emptyTitle}>Posez une question comptable</p>
             <div className={styles.suggestions}>
               {SUGGESTIONS.map(s => (
@@ -146,7 +149,7 @@ export default function AIChatPanel({ open, onClose }) {
           disabled={!input.trim() || loading || configured === false}
           aria-label="Envoyer"
         >
-          ↑
+          <ArrowUp size={18} aria-hidden="true" />
         </button>
       </div>
     </div>

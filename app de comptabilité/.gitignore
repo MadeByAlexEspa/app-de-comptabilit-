@@ -1,7 +1,9 @@
 node_modules/
 dist/
 .env
+server/.env
 *.db
 *.db-shm
 *.db-wal
 server/data/
+.claude/skills/

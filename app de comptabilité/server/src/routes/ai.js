@@ -48,7 +48,19 @@ router.post('/chat', async (req, res, next) => {
     if (!Array.isArray(messages) || !messages.length) {
       return res.status(400).json({ error: 'messages est requis' });
     }
-    const reply = await chat(db, messages);
+
+    const ALLOWED_ROLES = new Set(['user', 'assistant']);
+    const MAX_CONTENT = 10_000;
+    for (const msg of messages) {
+      if (!ALLOWED_ROLES.has(msg.role)) {
+        return res.status(400).json({ error: `Rôle invalide : ${msg.role}` });
+      }
+      if (typeof msg.content !== 'string' || msg.content.length > MAX_CONTENT) {
+        return res.status(400).json({ error: 'Contenu de message invalide ou trop long' });
+      }
+    }
+
+    const reply = await chat(db, messages, req.user.workspaceId);
     res.json({ reply });
   } catch (e) { next(e); }
 });

@@ -1,10 +1,12 @@
 import { useEffect, useState, useMemo } from 'react'
+import { Trash2 } from 'lucide-react'
 import { buildCategoriePatch } from '../lib/tvaRules.js'
 import { useFactures } from '../hooks/useFactures.js'
 import { useDepenses } from '../hooks/useDepenses.js'
 import DataTable from '../components/DataTable/DataTable.jsx'
 import Modal from '../components/Modal/Modal.jsx'
 import EntryForm from '../components/EntryForm/EntryForm.jsx'
+import Spinner from '../components/Spinner/Spinner.jsx'
 import { formatEur, formatDate } from '../lib/api.js'
 import styles from './Transactions.module.css'
 
@@ -97,8 +99,7 @@ const COLUMNS_TOUS = [
     editable: { type: 'date' } },
   { key: '_tiers',      label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—',
     sortable: false },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
-    editable: { type: 'number', step: '0.01', min: '0' } },
+  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
@@ -113,8 +114,7 @@ const COLUMNS_ENTREES = [
     editable: { type: 'date' } },
   { key: 'client',      label: 'Client',
     editable: { type: 'text' } },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
-    editable: { type: 'number', step: '0.01', min: '0' } },
+  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
@@ -129,8 +129,7 @@ const COLUMNS_SORTIES = [
     editable: { type: 'date' } },
   { key: 'fournisseur', label: 'Fournisseur',
     editable: { type: 'text' } },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v),
-    editable: { type: 'number', step: '0.01', min: '0' } },
+  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
   { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
@@ -532,14 +531,16 @@ export default function Transactions() {
           value={filterDateFrom}
           onChange={e => setFilterDateFrom(e.target.value)}
           title="Date de début"
+          aria-label="Date de début"
         />
-        <span className={styles.filterSep}>→</span>
+        <span className={styles.filterSep} aria-hidden="true">→</span>
         <input
           className={styles.filterInput}
           type="date"
           value={filterDateTo}
           onChange={e => setFilterDateTo(e.target.value)}
           title="Date de fin"
+          aria-label="Date de fin"
         />
         <select
           className={styles.filterSelect}
@@ -583,7 +584,7 @@ export default function Transactions() {
               className={styles.btnBulkDelete}
               onClick={() => setConfirmBulkDelete(true)}
             >
-              🗑️ Supprimer la sélection
+              <Trash2 size={14} aria-hidden="true" /> Supprimer la sélection
             </button>
           </div>
         </div>
@@ -591,7 +592,7 @@ export default function Transactions() {
 
       {loading ? (
         <div className={styles.loading}>
-          <div className={styles.spinner} />
+          <Spinner />
           <p>Chargement…</p>
         </div>
       ) : error ? (

@@ -30,7 +30,7 @@ router.get('/', (req, res, next) => {
       });
     }
 
-    const report = getPnlReport(db, debut, fin);
+    const report = getPnlReport(db, debut, fin, req.user.workspaceId);
     res.json(report);
   } catch (err) {
     next(err);

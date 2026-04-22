@@ -1,6 +1,8 @@
 .page {
   min-height: 100vh;
-  background: #f9fafb;
+  background-color: #fafaf8;
+  background-image: repeating-linear-gradient(transparent, transparent 31px, #e8e8e4 31px, #e8e8e4 32px);
+  background-size: 100% 32px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -9,12 +11,12 @@
 
 .card {
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
+  border: 1.5px solid #1a1a1a;
+  box-shadow: 5px 5px 0 #1a1a1a;
+  border-radius: 2px;
   padding: 40px;
   width: 100%;
-  max-width: 420px;
-  box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+  max-width: 400px;
   display: flex;
   flex-direction: column;
   gap: 20px;
@@ -24,26 +26,26 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  padding-bottom: 4px;
+  border-bottom: 2px dashed #e8e8e4;
 }
 
-.logoIcon { font-size: 24px; }
-
 .logoName {
-  font-size: 18px;
-  font-weight: 700;
-  color: #111827;
+  font-family: 'Special Elite', serif;
+  font-size: 20px;
+  color: #1a1a1a;
 }
 
 .title {
+  font-family: 'Special Elite', serif;
   font-size: 22px;
-  font-weight: 700;
-  color: #111827;
+  color: #1a1a1a;
   margin: 0;
 }
 
 .subtitle {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 13px;
+  color: #4a4a4a;
   margin: -12px 0 0;
 }
 
@@ -60,88 +62,100 @@
 }
 
 .label {
-  font-size: 13px;
-  font-weight: 600;
-  color: #374151;
+  font-family: 'Courier Prime', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  color: #1a1a1a;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .input {
   padding: 10px 14px;
-  border: 1.5px solid #d1d5db;
-  border-radius: 8px;
+  border: 1.5px solid #1a1a1a;
+  border-radius: 2px;
   font-size: 14px;
-  color: #111827;
+  color: #1a1a1a;
   background: #fff;
   font-family: inherit;
-  transition: border-color 0.15s;
+  transition: box-shadow 0.15s;
 }
 
 .input:focus {
   outline: none;
-  border-color: #1a56db;
-  box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+  box-shadow: 2px 2px 0 #1a1a1a;
 }
+
+.btn:focus-visible { outline: 2px solid #1a1a1a; outline-offset: 2px; }
 
 .error {
   padding: 10px 14px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  border-radius: 8px;
+  background: #fff5f5;
+  border: 1.5px solid #8b1a1a;
+  border-radius: 2px;
   font-size: 13px;
-  color: #b91c1c;
+  color: #8b1a1a;
+  font-family: 'Courier Prime', monospace;
 }
 
 .btn {
-  padding: 11px;
-  background: #1a56db;
+  padding: 12px;
+  background: #1a1a1a;
   border: none;
-  border-radius: 8px;
-  color: #fff;
+  border-radius: 2px;
+  color: #fafaf8;
+  font-family: 'Courier Prime', monospace;
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  font-family: inherit;
-  transition: background 0.15s;
+  box-shadow: 3px 3px 0 #4a4a4a;
+  transition: box-shadow 0.15s, transform 0.15s;
   margin-top: 4px;
+  letter-spacing: 0.02em;
 }
 
-.btn:hover:not(:disabled) { background: #1648c0; }
-.btn:disabled { opacity: 0.6; cursor: default; }
+.btn:hover:not(:disabled) {
+  box-shadow: 1px 1px 0 #4a4a4a;
+  transform: translate(2px, 2px);
+}
+.btn:disabled { opacity: 0.5; cursor: default; }
 
 .footer {
-  font-size: 14px;
-  color: #6b7280;
+  font-size: 13px;
+  color: #4a4a4a;
   text-align: center;
   margin: 0;
 }
 
 .link {
-  color: #1a56db;
-  font-weight: 600;
-  text-decoration: none;
+  color: #1a1a1a;
+  font-weight: 700;
+  text-decoration: underline;
+  text-decoration-style: dashed;
 }
 
-.link:hover { text-decoration: underline; }
+.link:hover { text-decoration-style: solid; }
 
 .demo {
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  background: #f5f5f2;
+  border: 1.5px dashed #e8e8e4;
+  border-radius: 2px;
   padding: 10px 14px;
+  font-family: 'Courier Prime', monospace;
   font-size: 12px;
-  color: #6b7280;
+  color: #4a4a4a;
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.demoLabel { font-weight: 600; }
+.demoLabel { font-weight: 700; color: #1a1a1a; }
 
 .demo code {
-  background: #e5e7eb;
+  background: #e8e8e4;
   padding: 1px 6px;
-  border-radius: 4px;
-  font-family: monospace;
-  color: #374151;
+  border-radius: 2px;
+  font-family: 'Courier Prime', monospace;
+  color: #1a1a1a;
 }

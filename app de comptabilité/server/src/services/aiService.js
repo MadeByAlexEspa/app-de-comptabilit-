@@ -1,7 +1,4 @@
-/**
- * AI accounting agent service.
- * Supports Anthropic, OpenAI, Mistral.
- */
+const { decryptRows, FACTURE_FIELDS, DEPENSE_FIELDS } = require('./cryptoService');
 
 const PROVIDERS = {
   anthropic: {
@@ -71,23 +68,37 @@ function saveConfig(db, data) {
   }
 }
 
-function getAccountingContext(db) {
-  const totalRevenu   = db.get('SELECT COALESCE(SUM(montant_ttc),0) AS total FROM factures')?.total ?? 0;
-  const totalDepenses = db.get('SELECT COALESCE(SUM(montant_ttc),0) AS total FROM depenses')?.total ?? 0;
-  const totalTvaColl  = db.get('SELECT COALESCE(SUM(montant_tva),0) AS total FROM factures')?.total ?? 0;
-  const totalTvaDed   = db.get('SELECT COALESCE(SUM(montant_tva),0) AS total FROM depenses')?.total ?? 0;
-  const nbFactures    = db.get('SELECT COUNT(*) AS cnt FROM factures')?.cnt ?? 0;
-  const nbDepenses    = db.get('SELECT COUNT(*) AS cnt FROM depenses')?.cnt ?? 0;
-  const nbEnAttente   = db.get("SELECT COUNT(*) AS cnt FROM factures WHERE statut='en_attente'")?.cnt ?? 0;
+function getAccountingContext(db, workspaceId) {
+  const allFactures = decryptRows(db.prepare('SELECT * FROM factures').all(), FACTURE_FIELDS, workspaceId);
+  const allDepenses = decryptRows(db.prepare('SELECT * FROM depenses').all(), DEPENSE_FIELDS, workspaceId);
 
-  const topClients = db.prepare(
-    'SELECT client, SUM(montant_ttc) AS total FROM factures GROUP BY client ORDER BY total DESC LIMIT 5'
-  ).all();
-  const topCats = db.prepare(
-    'SELECT categorie, SUM(montant_ttc) AS total FROM depenses GROUP BY categorie ORDER BY total DESC LIMIT 5'
-  ).all();
+  let totalRevenu = 0, totalDepenses = 0, totalTvaColl = 0, totalTvaDed = 0, nbEnAttente = 0;
+  const clientMap = {}, catMap = {};
 
-  return { totalRevenu, totalDepenses, totalTvaColl, totalTvaDed, nbFactures, nbDepenses, nbEnAttente, topClients, topCats };
+  for (const r of allFactures) {
+    totalRevenu  += r.montant_ttc || 0;
+    totalTvaColl += r.montant_tva || 0;
+    if (r.statut === 'en_attente') nbEnAttente++;
+    if (r.client) clientMap[r.client] = (clientMap[r.client] || 0) + (r.montant_ttc || 0);
+  }
+  for (const r of allDepenses) {
+    totalDepenses += r.montant_ttc || 0;
+    totalTvaDed   += r.montant_tva || 0;
+    if (r.categorie) catMap[r.categorie] = (catMap[r.categorie] || 0) + (r.montant_ttc || 0);
+  }
+
+  const topClients = Object.entries(clientMap)
+    .sort((a, b) => b[1] - a[1]).slice(0, 5)
+    .map(([client, total]) => ({ client, total }));
+  const topCats = Object.entries(catMap)
+    .sort((a, b) => b[1] - a[1]).slice(0, 5)
+    .map(([categorie, total]) => ({ categorie, total }));
+
+  return {
+    totalRevenu, totalDepenses, totalTvaColl, totalTvaDed,
+    nbFactures: allFactures.length, nbDepenses: allDepenses.length,
+    nbEnAttente, topClients, topCats,
+  };
 }
 
 function buildSystemPrompt(customPrompt, ctx) {
@@ -115,20 +126,23 @@ Réponds toujours en français. Sois précis et pratique. Cite les articles du C
 ${dataBlock}${customPrompt ? `\n\nInstructions supplémentaires : ${customPrompt}` : ''}`;
 }
 
-async function chat(db, messages) {
+async function chat(db, messages, workspaceId) {
   const config = getConfig(db);
   if (!config?.api_key) {
     throw new Error('IA non configurée. Ajoutez votre clé API dans Connexions API → IA.');
   }
-  const ctx = getAccountingContext(db);
+  const ctx = getAccountingContext(db, workspaceId);
   const systemPrompt = buildSystemPrompt(config.system_prompt, ctx);
   const provider = config.provider || 'anthropic';
   const model    = config.model    || PROVIDERS[provider]?.defaultModel;
 
-  if (provider === 'anthropic') return callAnthropic(config.api_key, model, systemPrompt, messages);
-  if (provider === 'openai')    return callOpenAI(config.api_key, model, systemPrompt, messages);
-  if (provider === 'mistral')   return callMistral(config.api_key, model, systemPrompt, messages);
-  if (provider === 'gemini')    return callGemini(config.api_key, model, systemPrompt, messages);
+  // Keep last 10 turns to cap token usage while preserving enough context
+  const trimmed = messages.slice(-10);
+
+  if (provider === 'anthropic') return callAnthropic(config.api_key, model, systemPrompt, trimmed);
+  if (provider === 'openai')    return callOpenAI(config.api_key, model, systemPrompt, trimmed);
+  if (provider === 'mistral')   return callMistral(config.api_key, model, systemPrompt, trimmed);
+  if (provider === 'gemini')    return callGemini(config.api_key, model, systemPrompt, trimmed);
   throw new Error(`Fournisseur inconnu : ${provider}`);
 }
 
@@ -139,8 +153,14 @@ async function callAnthropic(apiKey, model, systemPrompt, messages) {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
+      'anthropic-beta': 'prompt-caching-2024-07-31',
     },
-    body: JSON.stringify({ model, max_tokens: 1024, system: systemPrompt, messages }),
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      system: [{ type: 'text', text: systemPrompt, cache_control: { type: 'ephemeral' } }],
+      messages,
+    }),
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
@@ -155,6 +175,7 @@ async function callOpenAI(apiKey, model, systemPrompt, messages) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
+      max_tokens: 1024,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
     }),
   });
@@ -171,6 +192,7 @@ async function callMistral(apiKey, model, systemPrompt, messages) {
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${apiKey}` },
     body: JSON.stringify({
       model,
+      max_tokens: 1024,
       messages: [{ role: 'system', content: systemPrompt }, ...messages],
     }),
   });
@@ -195,6 +217,7 @@ async function callGemini(apiKey, model, systemPrompt, messages) {
       body: JSON.stringify({
         system_instruction: { parts: [{ text: systemPrompt }] },
         contents,
+        generationConfig: { maxOutputTokens: 1024 },
       }),
     }
   );

@@ -1,8 +1,9 @@
+const { decryptRows, FACTURE_FIELDS, DEPENSE_FIELDS } = require('./cryptoService');
+
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
-// Taux légaux de TVA en France (CGI art. 278 à 281 nonies)
 const TAUX_LEGAUX = [20, 10, 5.5, 2.1, 0];
 
 function ventilerParTaux(rows) {
@@ -27,21 +28,12 @@ function ventilerParTaux(rows) {
   return result;
 }
 
-/**
- * Déclaration TVA sur une plage de dates (conforme CA3 — art. 287 CGI).
- *
- * @param {object} db    - workspace DB instance
- * @param {string} debut - "YYYY-MM-DD"
- * @param {string} fin   - "YYYY-MM-DD"
- */
-function getTvaReportRange(db, debut, fin) {
-  const detailFactures = db
-    .prepare(`SELECT * FROM factures WHERE date >= ? AND date <= ? ORDER BY date`)
-    .all(debut, fin);
+function getTvaReportRange(db, debut, fin, workspaceId) {
+  const rawFactures = db.prepare(`SELECT * FROM factures WHERE date >= ? AND date <= ? ORDER BY date`).all(debut, fin);
+  const rawDepenses = db.prepare(`SELECT * FROM depenses WHERE date >= ? AND date <= ? ORDER BY date`).all(debut, fin);
 
-  const detailDepenses = db
-    .prepare(`SELECT * FROM depenses WHERE date >= ? AND date <= ? ORDER BY date`)
-    .all(debut, fin);
+  const detailFactures = decryptRows(rawFactures, FACTURE_FIELDS, workspaceId);
+  const detailDepenses = decryptRows(rawDepenses, DEPENSE_FIELDS, workspaceId);
 
   const collecteParTaux   = ventilerParTaux(detailFactures);
   const deductibleParTaux = ventilerParTaux(detailDepenses);
@@ -70,18 +62,12 @@ function getTvaReportRange(db, debut, fin) {
   };
 }
 
-/**
- * Rétrocompatibilité : accepte un mois "YYYY-MM".
- *
- * @param {object} db   - workspace DB instance
- * @param {string} mois - "YYYY-MM"
- */
-function getTvaReport(db, mois) {
+function getTvaReport(db, mois, workspaceId) {
   const [y, m] = mois.split('-');
   const debut  = `${y}-${m}-01`;
   const lastDay = new Date(Number(y), Number(m), 0).getDate();
   const fin    = `${y}-${m}-${String(lastDay).padStart(2, '0')}`;
-  return { ...getTvaReportRange(db, debut, fin), mois };
+  return { ...getTvaReportRange(db, debut, fin, workspaceId), mois };
 }
 
 module.exports = { getTvaReport, getTvaReportRange };

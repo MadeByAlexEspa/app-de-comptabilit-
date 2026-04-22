@@ -105,7 +105,7 @@ if (hasSuperAdmin && hasSuperAdmin.cnt === 0) {
 
 // ── Seed: workspace 1 + demo user (dev/test only) ─────────────────────────────
 
-if (process.env.NODE_ENV !== 'production') {
+if (process.env.NODE_ENV === 'development') {
   const wsCount = masterDb.get('SELECT COUNT(*) AS cnt FROM workspaces');
   if (wsCount.cnt === 0) {
     masterDb.run(
@@ -120,5 +120,21 @@ if (process.env.NODE_ENV !== 'production') {
     console.log('[masterDb] Seed: workspace "Démo" + user demo@compta.app créés');
   }
 }
+
+// ── Invitations table ──────────────────────────────────────────────────────────
+
+masterDb.exec(`
+  CREATE TABLE IF NOT EXISTS invitations (
+    id           INTEGER PRIMARY KEY AUTOINCREMENT,
+    token        TEXT NOT NULL UNIQUE,
+    email        TEXT NOT NULL,
+    workspace_id INTEGER NOT NULL REFERENCES workspaces(id),
+    role         TEXT NOT NULL DEFAULT 'owner',
+    expires_at   TEXT NOT NULL,
+    used_at      TEXT,
+    invited_by   INTEGER NOT NULL REFERENCES users(id),
+    created_at   TEXT DEFAULT (datetime('now'))
+  )
+`);
 
 module.exports = masterDb;

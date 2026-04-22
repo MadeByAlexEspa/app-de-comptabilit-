@@ -24,7 +24,7 @@ router.get('/', (req, res, next) => {
       return res.status(400).json({ error: 'Format de date invalide pour "debut". Attendu : YYYY-MM-DD' });
     }
 
-    const report = getBilanReport(db, fin, debut);
+    const report = getBilanReport(db, fin, debut, req.user.workspaceId);
     res.json(report);
   } catch (err) {
     next(err);

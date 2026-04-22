@@ -243,6 +243,21 @@ function applySchema(rawDb) {
   )
 `);
 
+  rawDb.run(`
+  CREATE TABLE IF NOT EXISTS qonto_expense_notes (
+    id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+    original_name         TEXT    NOT NULL,
+    description           TEXT,
+    montant_ttc           REAL,
+    account_id            INTEGER,
+    status                TEXT    NOT NULL DEFAULT 'pending',
+    qonto_attachment_id   TEXT,
+    error_message         TEXT,
+    created_at            TEXT    DEFAULT (datetime('now')),
+    sent_at               TEXT
+  )
+`);
+
   // Migrations (silently ignored if column already exists)
   try { rawDb.run('ALTER TABLE qonto_sync_log ADD COLUMN account_id INTEGER'); } catch (_) {}
 }
@@ -448,6 +463,32 @@ if (depenseCount.cnt === 0) {
 // Cache des DB par workspace
 const _workspaceDbs = new Map();
 
+// Encrypt existing plaintext rows (one-time migration; idempotent)
+function migrateEncryption(wrappedDb, workspaceId) {
+  if (!process.env.ENCRYPTION_MASTER_KEY) return;
+  const { encryptRow, FACTURE_FIELDS, DEPENSE_FIELDS } = require('../services/cryptoService');
+
+  const factRows = wrappedDb.prepare('SELECT * FROM factures').all();
+  for (const row of factRows) {
+    const ht = String(row.montant_ht || '');
+    if (!ht.startsWith('enc:')) {
+      const enc = encryptRow(row, FACTURE_FIELDS, workspaceId);
+      wrappedDb.prepare('UPDATE factures SET client=?,description=?,montant_ht=?,montant_tva=?,montant_ttc=? WHERE id=?')
+        .run(enc.client, enc.description, enc.montant_ht, enc.montant_tva, enc.montant_ttc, row.id);
+    }
+  }
+
+  const depRows = wrappedDb.prepare('SELECT * FROM depenses').all();
+  for (const row of depRows) {
+    const ht = String(row.montant_ht || '');
+    if (!ht.startsWith('enc:')) {
+      const enc = encryptRow(row, DEPENSE_FIELDS, workspaceId);
+      wrappedDb.prepare('UPDATE depenses SET fournisseur=?,description=?,montant_ht=?,montant_tva=?,montant_ttc=? WHERE id=?')
+        .run(enc.fournisseur, enc.description, enc.montant_ht, enc.montant_tva, enc.montant_ttc, row.id);
+    }
+  }
+}
+
 /**
  * Return the wrapped SQLite DB for a given workspace ID.
  * Workspace 1 reuses the existing compta.db singleton.
@@ -463,6 +504,7 @@ function getWorkspaceDb(workspaceId) {
   // workspace 1 → compta.db (existing DB)
   if (id === 1) {
     _workspaceDbs.set(1, db);
+    migrateEncryption(db, 1);
     return db;
   }
 
@@ -487,6 +529,7 @@ function getWorkspaceDb(workspaceId) {
   });
 
   _workspaceDbs.set(id, wrapped);
+  migrateEncryption(wrapped, id);
   return wrapped;
 }
 

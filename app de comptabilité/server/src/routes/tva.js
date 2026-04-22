@@ -24,7 +24,7 @@ router.get('/', (req, res, next) => {
       if (!DATE_RE.test(fin))
         return res.status(400).json({ error: 'Format invalide pour "fin". Attendu : YYYY-MM-DD' });
 
-      return res.json(getTvaReportRange(db, debut, fin));
+      return res.json(getTvaReportRange(db, debut, fin, req.user.workspaceId));
     }
 
     if (!mois)
@@ -32,7 +32,7 @@ router.get('/', (req, res, next) => {
     if (!MONTH_RE.test(mois))
       return res.status(400).json({ error: 'Format du paramètre "mois" invalide. Attendu : YYYY-MM' });
 
-    res.json(getTvaReport(db, mois));
+    res.json(getTvaReport(db, mois, req.user.workspaceId));
   } catch (err) {
     next(err);
   }

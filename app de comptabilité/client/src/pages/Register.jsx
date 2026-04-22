@@ -33,8 +33,7 @@ export default function Register() {
     <div className={styles.page}>
       <div className={styles.card}>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}>📒</span>
-          <span className={styles.logoName}>Comptabilité</span>
+          <span className={styles.logoName}>✎ Compte-Pote</span>
         </div>
         <h1 className={styles.title}>Créer un espace de travail</h1>
         <p className={styles.subtitle}>Votre entreprise, vos données, isolées et sécurisées</p>

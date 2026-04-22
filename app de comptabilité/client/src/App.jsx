@@ -6,10 +6,14 @@ import Transactions from './pages/Transactions.jsx'
 import TVA from './pages/TVA.jsx'
 import Exercice from './pages/Exercice.jsx'
 import Integrations from './pages/Integrations.jsx'
+import Workspace from './pages/Workspace.jsx'
+import NotesDefrais from './pages/NotesDefrais.jsx'
 import Login from './pages/Login.jsx'
 import Register from './pages/Register.jsx'
 import Admin from './pages/Admin.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
+import InviteAccept from './pages/InviteAccept.jsx'
+import Landing from './pages/Landing.jsx'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -28,8 +32,10 @@ function AppRoutes() {
   return (
     <Routes>
       {/* ── Public routes ── */}
-      <Route path="/login"       element={<Login />} />
-      <Route path="/register"    element={<Register />} />
+      <Route path="/landing"        element={<Landing />} />
+      <Route path="/login"          element={<Login />} />
+      <Route path="/register"       element={<Register />} />
+      <Route path="/invite/:token"  element={<InviteAccept />} />
 
       {/* ── Back-office admin (hors Layout utilisateur) ── */}
       <Route path="/admin/login" element={<AdminLogin />} />
@@ -44,7 +50,9 @@ function AppRoutes() {
               <Route path="/transactions" element={<Transactions />} />
               <Route path="/tva"          element={<TVA />} />
               <Route path="/exercice"     element={<Exercice />} />
+              <Route path="/notes-de-frais" element={<NotesDefrais />} />
               <Route path="/integrations" element={<Integrations />} />
+              <Route path="/workspace"    element={<Workspace />} />
               <Route path="*"             element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>

@@ -1,5 +1,7 @@
+import { TrendingUp, TrendingDown, Receipt, BarChart3, FileText } from 'lucide-react'
 import { useDashboard } from '../hooks/useDashboard.js'
 import KPICard from '../components/KPICard/KPICard.jsx'
+import Spinner from '../components/Spinner/Spinner.jsx'
 import { formatEur } from '../lib/api.js'
 import styles from './Dashboard.module.css'
 
@@ -9,7 +11,7 @@ export default function Dashboard() {
   if (loading) {
     return (
       <div className={styles.loading}>
-        <div className={styles.spinner} />
+        <Spinner size={36} />
         <p>Chargement du tableau de bord…</p>
       </div>
     )
@@ -39,28 +41,28 @@ export default function Dashboard() {
             value={formatEur(data?.ca_ht_mois)}
             subtitle="Chiffre d'affaires hors taxes"
             variant="success"
-            icon="💰"
+            icon={<TrendingUp size={20} aria-hidden="true" />}
           />
           <KPICard
             title="Charges du mois"
             value={formatEur(data?.charges_ht_mois)}
             subtitle="Dépenses hors taxes"
             variant="danger"
-            icon="💸"
+            icon={<TrendingDown size={20} aria-hidden="true" />}
           />
           <KPICard
             title="TVA due ce mois"
             value={formatEur(data?.tva_due_mois)}
             subtitle="À reverser à l'État"
             variant="primary"
-            icon="📊"
+            icon={<Receipt size={20} aria-hidden="true" />}
           />
           <KPICard
             title="Résultat YTD"
             value={formatEur(data?.resultat_ytd)}
             subtitle="Depuis le début de l'année"
             variant={data?.resultat_ytd >= 0 ? 'success' : 'danger'}
-            icon="📈"
+            icon={<BarChart3 size={20} aria-hidden="true" />}
           />
         </div>
       </section>
@@ -70,7 +72,7 @@ export default function Dashboard() {
         <div className={styles.pendingGrid}>
           <div className={styles.pendingCard}>
             <div className={styles.pendingIconWrapper} style={{ background: '#eff6ff' }}>
-              <span className={styles.pendingIcon}>📄</span>
+              <FileText size={22} color="#1a56db" aria-hidden="true" />
             </div>
             <div className={styles.pendingInfo}>
               <span className={styles.pendingLabel}>Factures en attente</span>
@@ -81,7 +83,7 @@ export default function Dashboard() {
           </div>
           <div className={styles.pendingCard}>
             <div className={styles.pendingIconWrapper} style={{ background: '#fff7ed' }}>
-              <span className={styles.pendingIcon}>💸</span>
+              <TrendingDown size={22} color="#d97706" aria-hidden="true" />
             </div>
             <div className={styles.pendingInfo}>
               <span className={styles.pendingLabel}>Dépenses en attente</span>

@@ -13,9 +13,10 @@
 }
 
 .pageTitle {
+  font-family: 'Special Elite', serif;
   font-size: 24px;
   font-weight: 700;
-  color: #111827;
+  color: #1a1a1a;
 }
 
 .pageSubtitle {
@@ -151,6 +152,7 @@
 .filterInput:focus {
   outline: none;
   border-color: #1a56db;
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
 }
 
 .filterSelect {
@@ -169,6 +171,7 @@
 .filterSelect:focus {
   outline: none;
   border-color: #1a56db;
+  box-shadow: 0 0 0 3px rgba(26, 86, 219, 0.12);
 }
 
 .filterSep {
@@ -324,6 +327,9 @@
   cursor: pointer;
   transition: background 0.15s;
   font-family: inherit;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .btnBulkDelete:hover {
@@ -341,19 +347,6 @@
   padding: 60px 20px;
   color: #6b7280;
   font-size: 14px;
-}
-
-.spinner {
-  width: 32px;
-  height: 32px;
-  border: 3px solid #e5e7eb;
-  border-top-color: #1a56db;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
 }
 
 .error {
@@ -466,3 +459,5 @@
 .btnDanger:hover {
   background: #c81e1e;
 }
+
+@media (prefers-reduced-motion: reduce) { .bulkBar { animation: none; } }

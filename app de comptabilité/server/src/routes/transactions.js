@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const { getWorkspaceDb } = require('../db/database');
+const { decryptRows, FACTURE_FIELDS, DEPENSE_FIELDS } = require('../services/cryptoService');
 
 const router = Router();
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -69,7 +70,10 @@ router.get('/', (req, res, next) => {
       return res.status(400).json({ error: `Filtre inconnu : "${filtre}"` });
     }
 
-    res.json({ factures, depenses });
+    res.json({
+      factures: decryptRows(factures, FACTURE_FIELDS, req.user.workspaceId),
+      depenses: decryptRows(depenses, DEPENSE_FIELDS, req.user.workspaceId),
+    });
   } catch (err) {
     next(err);
   }

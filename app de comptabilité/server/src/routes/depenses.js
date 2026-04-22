@@ -1,13 +1,10 @@
 const { Router } = require('express');
 const { getWorkspaceDb } = require('../db/database');
 const { validateTaux, validateStatut, computeAmounts } = require('../utils/entryUtils');
+const { encryptRow, decryptRow, decryptRows, DEPENSE_FIELDS } = require('../services/cryptoService');
 
 const router = Router();
 
-/**
- * Validate and normalise the request body.
- * Throws a 400 error with a French message on validation failure.
- */
 function parseBody(body, requireAll = true) {
   const {
     date,
@@ -47,7 +44,6 @@ function parseBody(body, requireAll = true) {
   };
 }
 
-// ── GET /api/depenses ─────────────────────────────────────────────────────────
 router.get('/', (req, res, next) => {
   try {
     const db = getWorkspaceDb(req.user.workspaceId);
@@ -55,64 +51,56 @@ router.get('/', (req, res, next) => {
 
     let rows;
     if (mois) {
-      rows = db
-        .prepare(`SELECT * FROM depenses WHERE strftime('%Y-%m', date) = ? ORDER BY date DESC`)
-        .all(mois);
+      rows = db.prepare(`SELECT * FROM depenses WHERE strftime('%Y-%m', date) = ? ORDER BY date DESC`).all(mois);
     } else {
       rows = db.prepare('SELECT * FROM depenses ORDER BY date DESC').all();
     }
 
-    res.json(rows);
+    res.json(decryptRows(rows, DEPENSE_FIELDS, req.user.workspaceId));
   } catch (err) {
     next(err);
   }
 });
 
-// ── GET /api/depenses/:id ─────────────────────────────────────────────────────
 router.get('/:id', (req, res, next) => {
   try {
     const db = getWorkspaceDb(req.user.workspaceId);
     const row = db.prepare('SELECT * FROM depenses WHERE id = ?').get(req.params.id);
-    if (!row) {
-      return res.status(404).json({ error: 'Dépense introuvable' });
-    }
-    res.json(row);
+    if (!row) return res.status(404).json({ error: 'Dépense introuvable' });
+    res.json(decryptRow(row, DEPENSE_FIELDS, req.user.workspaceId));
   } catch (err) {
     next(err);
   }
 });
 
-// ── POST /api/depenses ────────────────────────────────────────────────────────
 router.post('/', (req, res, next) => {
   try {
     const db = getWorkspaceDb(req.user.workspaceId);
     const data = parseBody(req.body, true);
+    const encrypted = encryptRow(data, DEPENSE_FIELDS, req.user.workspaceId);
 
-    const result = db
-      .prepare(`
-        INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
-        VALUES (@date, @fournisseur, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
-      `)
-      .run(data);
+    const result = db.prepare(`
+      INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
+      VALUES (@date, @fournisseur, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
+    `).run(encrypted);
 
     const created = db.prepare('SELECT * FROM depenses WHERE id = ?').get(result.lastInsertRowid);
-    res.status(201).json(created);
+    res.status(201).json(decryptRow(created, DEPENSE_FIELDS, req.user.workspaceId));
   } catch (err) {
     next(err);
   }
 });
 
-// ── PUT /api/depenses/:id ─────────────────────────────────────────────────────
 router.put('/:id', (req, res, next) => {
   try {
     const db = getWorkspaceDb(req.user.workspaceId);
     const existing = db.prepare('SELECT * FROM depenses WHERE id = ?').get(req.params.id);
-    if (!existing) {
-      return res.status(404).json({ error: 'Dépense introuvable' });
-    }
+    if (!existing) return res.status(404).json({ error: 'Dépense introuvable' });
 
-    const merged = { ...existing, ...req.body };
+    const decrypted = decryptRow(existing, DEPENSE_FIELDS, req.user.workspaceId);
+    const merged = { ...decrypted, ...req.body };
     const data = parseBody(merged, true);
+    const encrypted = encryptRow(data, DEPENSE_FIELDS, req.user.workspaceId);
 
     db.prepare(`
       UPDATE depenses
@@ -126,26 +114,22 @@ router.put('/:id', (req, res, next) => {
           categorie = @categorie,
           statut = @statut
       WHERE id = @id
-    `).run({ ...data, id: req.params.id });
+    `).run({ ...encrypted, id: req.params.id });
 
     const updated = db.prepare('SELECT * FROM depenses WHERE id = ?').get(req.params.id);
-    res.json(updated);
+    res.json(decryptRow(updated, DEPENSE_FIELDS, req.user.workspaceId));
   } catch (err) {
     next(err);
   }
 });
 
-// ── DELETE /api/depenses/:id ──────────────────────────────────────────────────
 router.delete('/:id', (req, res, next) => {
   try {
     const db = getWorkspaceDb(req.user.workspaceId);
     const existing = db.prepare('SELECT * FROM depenses WHERE id = ?').get(req.params.id);
-    if (!existing) {
-      return res.status(404).json({ error: 'Dépense introuvable' });
-    }
+    if (!existing) return res.status(404).json({ error: 'Dépense introuvable' });
 
     db.prepare('DELETE FROM depenses WHERE id = ?').run(req.params.id);
-    // Also remove the Qonto import record so the transaction can be re-imported
     db.prepare("DELETE FROM qonto_imports WHERE local_type = 'depense' AND local_id = ?").run(req.params.id);
     res.json({ message: 'Dépense supprimée', id: Number(req.params.id) });
   } catch (err) {

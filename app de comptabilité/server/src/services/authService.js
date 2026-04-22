@@ -19,8 +19,8 @@ async function register({ companyName, email, password }) {
   if (!companyName || !email || !password) {
     throw Object.assign(new Error('Champs manquants'), { status: 400 });
   }
-  if (password.length < 6) {
-    throw Object.assign(new Error('Mot de passe trop court (6 caractères min)'), { status: 400 });
+  if (password.length < 8) {
+    throw Object.assign(new Error('Mot de passe trop court (8 caractères min)'), { status: 400 });
   }
 
   // Email must be globally unique across all workspaces
@@ -90,4 +90,4 @@ function verifyToken(token) {
   return jwt.verify(token, JWT_SECRET);
 }
 
-module.exports = { register, login, verifyToken };
+module.exports = { register, login, verifyToken, signToken };

@@ -1,7 +1,7 @@
 /**
  * Admin routes — back-office endpoints (indépendant de l'auth utilisateur).
- * POST /api/admin/auth/login est public.
- * Toutes les autres routes requièrent un token admin (adminSession: true).
+ * loginRouter : POST /login — public, monté sur /api/admin/auth
+ * adminRouter  : toutes les autres routes — protégées par requireAdminToken
  */
 const { Router } = require('express');
 const jwt = require('jsonwebtoken');
@@ -9,19 +9,19 @@ const bcrypt = require('bcrypt');
 const masterDb = require('../db/masterDb');
 const { register } = require('../services/authService');
 
-const router = Router();
-
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME;
 const ADMIN_CODE     = process.env.ADMIN_CODE;
 const JWT_SECRET     = process.env.JWT_SECRET;
 
 if (!ADMIN_USERNAME || !ADMIN_CODE) {
-  console.warn('[admin] ADMIN_USERNAME ou ADMIN_CODE manquant dans .env — back-office désactivé');
+  throw new Error('[admin] ADMIN_USERNAME et ADMIN_CODE sont requis dans .env');
 }
 
-// ── POST /api/admin/auth/login — public, monté sur /api/admin/auth ────────────
-// Express reçoit ce router sur /api/admin/auth → path interne = /login
-router.post('/login', (req, res) => {
+// ── Router public : login uniquement ─────────────────────────────────────────
+
+const loginRouter = Router();
+
+loginRouter.post('/login', (req, res) => {
   const { username, code } = req.body;
   if (!username || !code) {
     return res.status(400).json({ error: 'username et code requis' });
@@ -33,8 +33,12 @@ router.post('/login', (req, res) => {
   res.json({ token });
 });
 
-// ── GET /api/admin/analytics ───────────────────────────────────────────────────
-router.get('/analytics', (req, res, next) => {
+// ── Router protégé : toutes les routes admin ──────────────────────────────────
+
+const adminRouter = Router();
+
+// GET /api/admin/analytics
+adminRouter.get('/analytics', (req, res, next) => {
   try {
     const total_workspaces = masterDb.prepare('SELECT COUNT(*) AS cnt FROM workspaces').get().cnt;
     const total_users = masterDb.prepare('SELECT COUNT(*) AS cnt FROM users').get().cnt;
@@ -59,8 +63,8 @@ router.get('/analytics', (req, res, next) => {
   }
 });
 
-// ── GET /api/admin/workspaces ──────────────────────────────────────────────────
-router.get('/workspaces', (req, res, next) => {
+// GET /api/admin/workspaces
+adminRouter.get('/workspaces', (req, res, next) => {
   try {
     const workspaces = masterDb.prepare('SELECT * FROM workspaces ORDER BY created_at DESC').all();
     const result = workspaces.map(ws => {
@@ -75,8 +79,8 @@ router.get('/workspaces', (req, res, next) => {
   }
 });
 
-// ── GET /api/admin/users ───────────────────────────────────────────────────────
-router.get('/users', (req, res, next) => {
+// GET /api/admin/users
+adminRouter.get('/users', (req, res, next) => {
   try {
     const users = masterDb
       .prepare(`
@@ -93,45 +97,38 @@ router.get('/users', (req, res, next) => {
   }
 });
 
-// ── POST /api/admin/users ──────────────────────────────────────────────────────
-router.post('/users', async (req, res, next) => {
+// POST /api/admin/users
+adminRouter.post('/users', async (req, res, next) => {
   try {
     const { workspace_id, email, password, role = 'owner' } = req.body;
 
-    // Validate required fields
     if (!workspace_id || !email || !password) {
       return res.status(400).json({ error: 'workspace_id, email et password sont requis' });
     }
 
-    // Validate workspace_id is a positive integer
     const wsId = parseInt(workspace_id, 10);
     if (!Number.isInteger(wsId) || wsId <= 0) {
       return res.status(400).json({ error: 'workspace_id doit être un entier positif' });
     }
 
-    // Validate password length
-    if (password.length < 6) {
-      return res.status(400).json({ error: 'Mot de passe trop court (6 caractères min)' });
+    if (password.length < 8) {
+      return res.status(400).json({ error: 'Mot de passe trop court (8 caractères min)' });
     }
 
-    // Validate role
     if (!['owner', 'superadmin'].includes(role)) {
       return res.status(400).json({ error: "Le rôle doit être 'owner' ou 'superadmin'" });
     }
 
-    // Verify workspace exists
     const workspace = masterDb.prepare('SELECT id FROM workspaces WHERE id = ?').get(wsId);
     if (!workspace) {
       return res.status(404).json({ error: 'Workspace introuvable' });
     }
 
-    // Verify email is not already taken
     const existing = masterDb.prepare('SELECT id FROM users WHERE email = ?').get(email);
     if (existing) {
       return res.status(409).json({ error: 'Cet email est déjà utilisé' });
     }
 
-    // Hash password and insert user
     const password_hash = await bcrypt.hash(password, 10);
     masterDb.run(
       'INSERT INTO users (workspace_id, email, password_hash, role) VALUES (?, ?, ?, ?)',
@@ -148,8 +145,8 @@ router.post('/users', async (req, res, next) => {
   }
 });
 
-// ── PUT /api/admin/users/:id ───────────────────────────────────────────────────
-router.put('/users/:id', async (req, res, next) => {
+// PUT /api/admin/users/:id
+adminRouter.put('/users/:id', async (req, res, next) => {
   try {
     const userId = parseInt(req.params.id, 10);
     if (!Number.isInteger(userId) || userId <= 0) {
@@ -158,12 +155,10 @@ router.put('/users/:id', async (req, res, next) => {
 
     const { email, role, password } = req.body;
 
-    // Validate role if provided
     if (role !== undefined && !['owner', 'superadmin'].includes(role)) {
       return res.status(400).json({ error: "Le rôle doit être 'owner' ou 'superadmin'" });
     }
 
-    // Fetch existing user
     const existing = masterDb
       .prepare('SELECT id, email, role, workspace_id, last_login_at, created_at FROM users WHERE id = ?')
       .get(userId);
@@ -171,22 +166,20 @@ router.put('/users/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    // Check email uniqueness if email is being changed
     const newEmail = email !== undefined ? email : existing.email;
     if (email !== undefined && email !== existing.email) {
       const taken = masterDb.prepare('SELECT id FROM users WHERE email = ? AND id != ?').get(email, userId);
       if (taken) return res.status(409).json({ error: 'Cet email est déjà utilisé' });
     }
-    const newRole  = role  !== undefined ? role  : existing.role;
+    const newRole = role !== undefined ? role : existing.role;
 
     let newPasswordHash;
     if (password !== undefined) {
-      if (password.length < 6) {
-        return res.status(400).json({ error: 'Mot de passe trop court (6 caractères min)' });
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Mot de passe trop court (8 caractères min)' });
       }
       newPasswordHash = await bcrypt.hash(password, 10);
     } else {
-      // Keep existing hash — fetch it separately since we excluded it above
       const withHash = masterDb.prepare('SELECT password_hash FROM users WHERE id = ?').get(userId);
       newPasswordHash = withHash.password_hash;
     }
@@ -206,26 +199,19 @@ router.put('/users/:id', async (req, res, next) => {
   }
 });
 
-// ── DELETE /api/admin/users/:id ────────────────────────────────────────────────
-router.delete('/users/:id', (req, res, next) => {
+// DELETE /api/admin/users/:id
+adminRouter.delete('/users/:id', (req, res, next) => {
   try {
     const userId = parseInt(req.params.id, 10);
     if (!Number.isInteger(userId) || userId <= 0) {
       return res.status(400).json({ error: 'id utilisateur invalide' });
     }
 
-    // Refuse self-deletion
-    if (userId === req.user.userId) {
-      return res.status(400).json({ error: 'Vous ne pouvez pas supprimer votre propre compte' });
-    }
-
-    // Fetch user to determine workspace
     const user = masterDb.prepare('SELECT id, workspace_id FROM users WHERE id = ?').get(userId);
     if (!user) {
       return res.status(404).json({ error: 'Utilisateur introuvable' });
     }
 
-    // Refuse deletion of the last user in a workspace
     const workspaceUserCount = masterDb
       .prepare('SELECT COUNT(*) AS cnt FROM users WHERE workspace_id = ?')
       .get(user.workspace_id);
@@ -240,8 +226,8 @@ router.delete('/users/:id', (req, res, next) => {
   }
 });
 
-// ── POST /api/admin/workspaces ─────────────────────────────────────────────────
-router.post('/workspaces', async (req, res, next) => {
+// POST /api/admin/workspaces
+adminRouter.post('/workspaces', async (req, res, next) => {
   try {
     const { name, email, password } = req.body;
 
@@ -249,10 +235,8 @@ router.post('/workspaces', async (req, res, next) => {
       return res.status(400).json({ error: 'name, email et password sont requis' });
     }
 
-    // register() creates the workspace + owner user and returns a token — we discard the token
     const { user } = await register({ companyName: name, email, password });
 
-    // Re-fetch workspace and user records (without token, without password_hash)
     const workspace = masterDb
       .prepare('SELECT * FROM workspaces WHERE id = ?')
       .get(user.workspaceId);
@@ -266,26 +250,23 @@ router.post('/workspaces', async (req, res, next) => {
   }
 });
 
-// ── DELETE /api/admin/workspaces/:id ──────────────────────────────────────────
-router.delete('/workspaces/:id', (req, res, next) => {
+// DELETE /api/admin/workspaces/:id
+adminRouter.delete('/workspaces/:id', (req, res, next) => {
   try {
     const wsId = parseInt(req.params.id, 10);
     if (!Number.isInteger(wsId) || wsId <= 0) {
       return res.status(400).json({ error: 'id workspace invalide' });
     }
 
-    // Protect workspace 1
     if (wsId === 1) {
       return res.status(403).json({ error: 'Le workspace système ne peut pas être supprimé' });
     }
 
-    // Verify workspace exists
     const workspace = masterDb.prepare('SELECT id FROM workspaces WHERE id = ?').get(wsId);
     if (!workspace) {
       return res.status(404).json({ error: 'Workspace introuvable' });
     }
 
-    // Delete users + workspace atomically
     masterDb.run('BEGIN');
     try {
       masterDb.run('DELETE FROM users WHERE workspace_id = ?', [wsId]);
@@ -302,4 +283,4 @@ router.delete('/workspaces/:id', (req, res, next) => {
   }
 });
 
-module.exports = router;
+module.exports = { loginRouter, adminRouter };
