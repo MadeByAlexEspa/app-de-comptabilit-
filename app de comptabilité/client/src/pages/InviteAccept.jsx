@@ -50,7 +50,7 @@ export default function InviteAccept() {
       <div className={styles.card}>
         <div className={styles.logo}>
           <span className={styles.logoIcon}>📒</span>
-          <span className={styles.logoName}>Comptabilité</span>
+          <span className={styles.logoName}>Compte-Pote</span>
         </div>
 
         {status === 'loading' && (
