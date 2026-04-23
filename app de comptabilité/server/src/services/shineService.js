@@ -127,6 +127,47 @@ function isAlreadyImported(db, shineId) {
   return !!db.get('SELECT id FROM shine_imports WHERE shine_transaction_id = ?', [shineId]);
 }
 
+function getImportRecord(db, shineId) {
+  return db.get('SELECT local_type, local_id FROM shine_imports WHERE shine_transaction_id = ?', [shineId]);
+}
+
+// Shine may expose VAT as vatAmount (euros) or vat_amount (cents) depending on API version
+function applyVatUpdate(db, shineId, tx) {
+  // Support both naming conventions
+  const rawVat  = tx.vatAmount  ?? tx.vat_amount  ?? null;
+  const rawRate = tx.vatRate    ?? tx.vat_rate     ?? null;
+  if (rawVat === null || rawVat === 0) return false;
+
+  // Shine vatAmount is in euros (float); vat_amount would be cents
+  const montantTva = round2(tx.vatAmount !== undefined ? rawVat : rawVat / 100);
+  if (montantTva <= 0) return false;
+
+  const record = getImportRecord(db, shineId);
+  if (!record) return false;
+
+  const table = record.local_type === 'facture' ? 'factures' : 'depenses';
+  const row = db.get(`SELECT montant_ttc, montant_tva FROM ${table} WHERE id = ?`, [record.local_id]);
+  if (!row) return false;
+
+  if (Math.abs(row.montant_tva - montantTva) < 0.01) return false;
+
+  const montantHt = round2(row.montant_ttc - montantTva);
+  const tauxTva   = rawRate ? parseFloat(rawRate) : null;
+
+  if (tauxTva !== null) {
+    db.run(
+      `UPDATE ${table} SET montant_tva = ?, montant_ht = ?, taux_tva = ? WHERE id = ?`,
+      [montantTva, montantHt, tauxTva, record.local_id]
+    );
+  } else {
+    db.run(
+      `UPDATE ${table} SET montant_tva = ?, montant_ht = ? WHERE id = ?`,
+      [montantTva, montantHt, record.local_id]
+    );
+  }
+  return true;
+}
+
 function recordImport(db, shineId, type, localId) {
   db.run(
     'INSERT INTO shine_imports (shine_transaction_id, local_type, local_id) VALUES (?, ?, ?)',
@@ -205,6 +246,7 @@ async function runSync(db, account) {
 
   let fetched  = 0;
   let imported = 0;
+  let updated  = 0;
   let skipped  = 0;
   const errors = [];
 
@@ -221,7 +263,13 @@ async function runSync(db, account) {
 
       for (const tx of transactions) {
         if (isAlreadyImported(db, tx.id)) {
-          skipped++;
+          try {
+            if (applyVatUpdate(db, tx.id, tx)) updated++;
+            else skipped++;
+          } catch (e) {
+            errors.push(`[${tx.id}] vat-update: ${e.message}`);
+            skipped++;
+          }
           continue;
         }
         try {
@@ -245,10 +293,10 @@ async function runSync(db, account) {
   db.run('UPDATE shine_accounts SET last_sync_at = ? WHERE id = ?', [now, accountId]);
   db.run(
     'INSERT INTO shine_sync_log (account_id, synced_at, fetched, imported, skipped, errors) VALUES (?, ?, ?, ?, ?, ?)',
-    [accountId, now, fetched, imported, skipped, errors.length ? errors.join('\n') : null]
+    [accountId, now, fetched, imported, skipped + updated, errors.length ? errors.join('\n') : null]
   );
 
-  return { synced_at: now, fetched, imported, skipped, errors };
+  return { synced_at: now, fetched, imported, updated, skipped, errors };
 }
 
 // ── Auto-sync ─────────────────────────────────────────────────────────────────

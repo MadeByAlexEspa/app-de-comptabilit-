@@ -133,6 +133,47 @@ function isAlreadyImported(db, qontoId) {
   return !!db.get('SELECT id FROM qonto_imports WHERE qonto_transaction_id = ?', [qontoId]);
 }
 
+// Returns the import record (local_type + local_id) for an already-imported transaction
+function getImportRecord(db, qontoId) {
+  return db.get('SELECT local_type, local_id FROM qonto_imports WHERE qonto_transaction_id = ?', [qontoId]);
+}
+
+// If the Qonto transaction now has VAT data, update the local facture/depense.
+// TTC is kept fixed; only montant_tva and montant_ht are recalculated.
+// Returns true if an update was applied.
+function applyVatUpdate(db, qontoId, tx) {
+  if (!tx.vat_amount) return false;
+
+  const montantTva = round2(tx.vat_amount / 100);
+  if (montantTva <= 0) return false;
+
+  const record = getImportRecord(db, qontoId);
+  if (!record) return false;
+
+  const table = record.local_type === 'facture' ? 'factures' : 'depenses';
+  const row = db.get(`SELECT montant_ttc, montant_tva FROM ${table} WHERE id = ?`, [record.local_id]);
+  if (!row) return false;
+
+  // Skip if TVA already correct (within 1 cent)
+  if (Math.abs(row.montant_tva - montantTva) < 0.01) return false;
+
+  const montantHt = round2(row.montant_ttc - montantTva);
+  const tauxTva   = tx.vat_rate ? parseFloat(tx.vat_rate) : null;
+
+  if (tauxTva !== null) {
+    db.run(
+      `UPDATE ${table} SET montant_tva = ?, montant_ht = ?, taux_tva = ? WHERE id = ?`,
+      [montantTva, montantHt, tauxTva, record.local_id]
+    );
+  } else {
+    db.run(
+      `UPDATE ${table} SET montant_tva = ?, montant_ht = ? WHERE id = ?`,
+      [montantTva, montantHt, record.local_id]
+    );
+  }
+  return true;
+}
+
 function recordImport(db, qontoId, type, localId) {
   db.run(
     'INSERT INTO qonto_imports (qonto_transaction_id, local_type, local_id) VALUES (?, ?, ?)',
@@ -209,6 +250,7 @@ async function runSync(db, account) {
   let page     = 1;
   let fetched  = 0;
   let imported = 0;
+  let updated  = 0;
   let skipped  = 0;
   const errors = [];
 
@@ -224,7 +266,13 @@ async function runSync(db, account) {
 
       for (const tx of transactions) {
         if (isAlreadyImported(db, tx.transaction_id)) {
-          skipped++;
+          try {
+            if (applyVatUpdate(db, tx.transaction_id, tx)) updated++;
+            else skipped++;
+          } catch (e) {
+            errors.push(`[${tx.transaction_id}] vat-update: ${e.message}`);
+            skipped++;
+          }
           continue;
         }
         try {
@@ -253,10 +301,10 @@ async function runSync(db, account) {
 
   db.run(
     'INSERT INTO qonto_sync_log (account_id, synced_at, fetched, imported, skipped, errors) VALUES (?, ?, ?, ?, ?, ?)',
-    [accountId || null, now, fetched, imported, skipped, errors.length ? errors.join('\n') : null]
+    [accountId || null, now, fetched, imported, skipped + updated, errors.length ? errors.join('\n') : null]
   );
 
-  return { synced_at: now, fetched, imported, skipped, errors };
+  return { synced_at: now, fetched, imported, updated, skipped, errors };
 }
 
 // ── Auto-sync (daily, all accounts) ──────────────────────────────────────────
