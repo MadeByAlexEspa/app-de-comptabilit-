@@ -7,7 +7,7 @@ export default function Landing() {
       {/* ── Nav ── */}
       <header className={styles.nav}>
         <div className={styles.navInner}>
-          <span className={styles.navLogo}>✎ Compte-Pote</span>
+          <span className={styles.navLogo}>📝 Compte-Pote</span>
           <nav className={styles.navLinks}>
             <Link to="/login" className={styles.navLogin}>Se connecter</Link>
             <Link to="/register" className={styles.navCta}>Commencer</Link>
@@ -155,7 +155,7 @@ export default function Landing() {
       {/* ── Footer ── */}
       <footer className={styles.footer}>
         <div className={styles.footerInner}>
-          <span className={styles.footerLogo}>✎ Compte-Pote</span>
+          <span className={styles.footerLogo}>📝 Compte-Pote</span>
           <p className={styles.footerTagline}>
             Fait pour les indépendants français. Pas pour les grandes entreprises.
           </p>
