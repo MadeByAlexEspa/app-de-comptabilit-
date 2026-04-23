@@ -52,11 +52,25 @@ router.get('/', (req, res, next) => {
     const db = getWorkspaceDb(req.user.workspaceId);
     const { mois } = req.query;
 
+    const baseSQL = `
+      SELECT f.*,
+        COALESCE(
+          (SELECT has_attachment FROM qonto_imports WHERE local_type='facture' AND local_id=f.id),
+          (SELECT has_attachment FROM shine_imports  WHERE local_type='facture' AND local_id=f.id),
+          0
+        ) AS has_attachment,
+        CASE
+          WHEN (SELECT 1 FROM qonto_imports WHERE local_type='facture' AND local_id=f.id) THEN 'qonto'
+          WHEN (SELECT 1 FROM shine_imports  WHERE local_type='facture' AND local_id=f.id) THEN 'shine'
+          ELSE NULL
+        END AS bank_source
+      FROM factures f
+    `;
     let rows;
     if (mois) {
-      rows = db.prepare(`SELECT * FROM factures WHERE strftime('%Y-%m', date) = ? ORDER BY date DESC`).all(mois);
+      rows = db.prepare(`${baseSQL} WHERE strftime('%Y-%m', f.date) = ? ORDER BY f.date DESC`).all(mois);
     } else {
-      rows = db.prepare('SELECT * FROM factures ORDER BY date DESC').all();
+      rows = db.prepare(`${baseSQL} ORDER BY f.date DESC`).all();
     }
 
     res.json(decryptRows(rows, FACTURE_FIELDS, req.user.workspaceId));

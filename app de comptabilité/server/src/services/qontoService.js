@@ -174,10 +174,17 @@ function applyVatUpdate(db, qontoId, tx) {
   return true;
 }
 
-function recordImport(db, qontoId, type, localId) {
+function recordImport(db, qontoId, type, localId, hasAttachment = false) {
   db.run(
-    'INSERT INTO qonto_imports (qonto_transaction_id, local_type, local_id) VALUES (?, ?, ?)',
-    [qontoId, type, localId]
+    'INSERT INTO qonto_imports (qonto_transaction_id, local_type, local_id, has_attachment) VALUES (?, ?, ?, ?)',
+    [qontoId, type, localId, hasAttachment ? 1 : 0]
+  );
+}
+
+function updateAttachmentStatus(db, qontoId, hasAttachment) {
+  db.run(
+    'UPDATE qonto_imports SET has_attachment = ? WHERE qonto_transaction_id = ?',
+    [hasAttachment ? 1 : 0, qontoId]
   );
 }
 
@@ -197,9 +204,10 @@ function importTransaction(db, tx) {
   const montantHt  = montantTtc;
   const montantTva = 0;
 
-  const date  = (tx.settled_at || tx.emitted_at || '').slice(0, 10);
-  const label = fixMojibake((tx.label || '').trim() || (tx.side === 'credit' ? 'Virement reçu' : 'Paiement'));
-  const note  = fixMojibake((tx.note  || '').trim());
+  const date          = (tx.settled_at || tx.emitted_at || '').slice(0, 10);
+  const label         = fixMojibake((tx.label || '').trim() || (tx.side === 'credit' ? 'Virement reçu' : 'Paiement'));
+  const note          = fixMojibake((tx.note  || '').trim());
+  const hasAttachment = Array.isArray(tx.attachment_ids) && tx.attachment_ids.length > 0;
 
   // Auto-assign category from tiers history, else use PCG default
   const categorie = lookupTiersCategorie(db, label, tx.side);
@@ -221,7 +229,7 @@ function importTransaction(db, tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(db, tx.transaction_id, 'facture', result.lastInsertRowid);
+    recordImport(db, tx.transaction_id, 'facture', result.lastInsertRowid, hasAttachment);
   } else {
     const stmt = db.prepare(`
       INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
@@ -238,7 +246,7 @@ function importTransaction(db, tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(db, tx.transaction_id, 'depense', result.lastInsertRowid);
+    recordImport(db, tx.transaction_id, 'depense', result.lastInsertRowid, hasAttachment);
   }
 }
 
@@ -267,6 +275,8 @@ async function runSync(db, account) {
       for (const tx of transactions) {
         if (isAlreadyImported(db, tx.transaction_id)) {
           try {
+            const hasAtt = Array.isArray(tx.attachment_ids) && tx.attachment_ids.length > 0;
+            updateAttachmentStatus(db, tx.transaction_id, hasAtt);
             if (applyVatUpdate(db, tx.transaction_id, tx)) updated++;
             else skipped++;
           } catch (e) {

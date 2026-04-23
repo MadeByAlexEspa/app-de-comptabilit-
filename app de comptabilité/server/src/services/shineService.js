@@ -168,10 +168,17 @@ function applyVatUpdate(db, shineId, tx) {
   return true;
 }
 
-function recordImport(db, shineId, type, localId) {
+function recordImport(db, shineId, type, localId, hasAttachment = false) {
   db.run(
-    'INSERT INTO shine_imports (shine_transaction_id, local_type, local_id) VALUES (?, ?, ?)',
-    [shineId, type, localId]
+    'INSERT INTO shine_imports (shine_transaction_id, local_type, local_id, has_attachment) VALUES (?, ?, ?, ?)',
+    [shineId, type, localId, hasAttachment ? 1 : 0]
+  );
+}
+
+function updateAttachmentStatus(db, shineId, hasAttachment) {
+  db.run(
+    'UPDATE shine_imports SET has_attachment = ? WHERE shine_transaction_id = ?',
+    [hasAttachment ? 1 : 0, shineId]
   );
 }
 
@@ -193,10 +200,11 @@ function importTransaction(db, tx) {
   const montantHt  = montantTtc;
   const montantTva = 0;
 
-  const date  = (tx.executedAt || tx.createdAt || '').slice(0, 10);
-  const label = fixMojibake(
+  const date          = (tx.executedAt || tx.createdAt || '').slice(0, 10);
+  const label         = fixMojibake(
     (tx.label || tx.counterpartyName || '').trim() || (side === 'credit' ? 'Virement reçu' : 'Paiement')
   );
+  const hasAttachment = !!(tx.attachments?.length || tx.receipt || tx.receiptUrl);
 
   // Auto-assign category from tiers history, else use PCG default
   const categorie = lookupTiersCategorie(db, label, side);
@@ -218,7 +226,7 @@ function importTransaction(db, tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(db, tx.id, 'facture', result.lastInsertRowid);
+    recordImport(db, tx.id, 'facture', result.lastInsertRowid, hasAttachment);
   } else {
     const stmt = db.prepare(`
       INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
@@ -235,7 +243,7 @@ function importTransaction(db, tx) {
       categorie,
       statut:      'payee',
     });
-    recordImport(db, tx.id, 'depense', result.lastInsertRowid);
+    recordImport(db, tx.id, 'depense', result.lastInsertRowid, hasAttachment);
   }
 }
 
@@ -264,6 +272,8 @@ async function runSync(db, account) {
       for (const tx of transactions) {
         if (isAlreadyImported(db, tx.id)) {
           try {
+            const hasAtt = !!(tx.attachments?.length || tx.receipt || tx.receiptUrl);
+            updateAttachmentStatus(db, tx.id, hasAtt);
             if (applyVatUpdate(db, tx.id, tx)) updated++;
             else skipped++;
           } catch (e) {

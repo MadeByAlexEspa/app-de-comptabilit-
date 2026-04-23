@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { Paperclip } from 'lucide-react'
 import { api, formatEur, formatDate } from '../lib/api.js'
 import Spinner from '../components/Spinner/Spinner.jsx'
 import styles from './TVA.module.css'
@@ -86,6 +87,14 @@ function periodLabel(mode, year, sub) {
 }
 
 const TAUX_EDIT_OPTIONS = [20, 10, 5.5, 2.1, 0]
+
+function AttachmentCell({ row }) {
+  if (!row.bank_source) return <td />
+  if (row.has_attachment) {
+    return <td title={`Facture présente (${row.bank_source})`} style={{ textAlign: 'center', color: '#16a34a' }}><Paperclip size={14} /></td>
+  }
+  return <td title={`Importé depuis ${row.bank_source} — pas de facture`} style={{ textAlign: 'center', color: '#9ca3af' }}>—</td>
+}
 
 // ── EditableCell ──────────────────────────────────────────────────────────────
 
@@ -481,11 +490,12 @@ export default function TVA() {
                       <th className={styles.right}>Taux</th>
                       <th className={styles.right}>TVA</th>
                       <th className={styles.right}>TTC</th>
+                      <th style={{ textAlign: 'center' }}>📎</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredFactures.length === 0 ? (
-                      <tr><td colSpan={6} className={styles.emptyCell}>Aucun résultat.</td></tr>
+                      <tr><td colSpan={7} className={styles.emptyCell}>Aucun résultat.</td></tr>
                     ) : filteredFactures.map(f => (
                       <tr key={f.id}>
                         <td>{formatDate(f.date)}</td>
@@ -494,6 +504,7 @@ export default function TVA() {
                         <EditableCell value={f.taux_tva}    field="taux_tva"    row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <EditableCell value={f.montant_tva} field="montant_tva" row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+                        <AttachmentCell row={f} />
                       </tr>
                     ))}
                   </tbody>
@@ -504,6 +515,7 @@ export default function TVA() {
                       <td />
                       <td className={styles.right}><strong>{formatEur(filteredFactures.reduce((s, f) => s + f.montant_tva, 0))}</strong></td>
                       <td className={styles.right}><strong>{formatEur(filteredFactures.reduce((s, f) => s + f.montant_ttc, 0))}</strong></td>
+                      <td />
                     </tr>
                   </tfoot>
                 </table>
@@ -553,11 +565,12 @@ export default function TVA() {
                       <th className={styles.right}>Taux</th>
                       <th className={styles.right}>TVA</th>
                       <th className={styles.right}>TTC</th>
+                      <th style={{ textAlign: 'center' }}>📎</th>
                     </tr>
                   </thead>
                   <tbody>
                     {filteredDepenses.length === 0 ? (
-                      <tr><td colSpan={6} className={styles.emptyCell}>Aucun résultat.</td></tr>
+                      <tr><td colSpan={7} className={styles.emptyCell}>Aucun résultat.</td></tr>
                     ) : filteredDepenses.map(d => (
                       <tr key={d.id}>
                         <td>{formatDate(d.date)}</td>
@@ -566,6 +579,7 @@ export default function TVA() {
                         <EditableCell value={d.taux_tva}    field="taux_tva"    row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <EditableCell value={d.montant_tva} field="montant_tva" row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+                        <AttachmentCell row={d} />
                       </tr>
                     ))}
                   </tbody>
@@ -576,6 +590,7 @@ export default function TVA() {
                       <td />
                       <td className={styles.right}><strong>{formatEur(filteredDepenses.reduce((s, d) => s + d.montant_tva, 0))}</strong></td>
                       <td className={styles.right}><strong>{formatEur(filteredDepenses.reduce((s, d) => s + d.montant_ttc, 0))}</strong></td>
+                      <td />
                     </tr>
                   </tfoot>
                 </table>

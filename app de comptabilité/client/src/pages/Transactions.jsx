@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Trash2, Paperclip } from 'lucide-react'
 import { buildCategoriePatch } from '../lib/tvaRules.js'
 import { useFactures } from '../hooks/useFactures.js'
 import { useDepenses } from '../hooks/useDepenses.js'
@@ -11,6 +11,14 @@ import { formatEur, formatDate } from '../lib/api.js'
 import styles from './Transactions.module.css'
 
 const PAGE_SIZE = 20
+
+function AttachmentBadge({ row }) {
+  if (!row.bank_source) return null
+  if (row.has_attachment) {
+    return <span title={`Facture présente (${row.bank_source})`} style={{ color: '#16a34a', display: 'flex', justifyContent: 'center' }}><Paperclip size={14} /></span>
+  }
+  return <span title={`Importé depuis ${row.bank_source} — pas de facture`} style={{ color: '#9ca3af', display: 'flex', justifyContent: 'center' }}>—</span>
+}
 
 // ── Options pour l'édition inline ─────────────────────────────────────────
 
@@ -94,52 +102,55 @@ function TypeBadge({ type }) {
 }
 
 const COLUMNS_TOUS = [
-  { key: '_type',       label: 'Type',        render: (_, row) => <TypeBadge type={row._type} />, sortable: false },
-  { key: 'date',        label: 'Date',        render: v => formatDate(v),
+  { key: '_type',          label: 'Type',        render: (_, row) => <TypeBadge type={row._type} />, sortable: false },
+  { key: 'date',           label: 'Date',        render: v => formatDate(v),
     editable: { type: 'date' } },
-  { key: '_tiers',      label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—',
+  { key: '_tiers',         label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—',
     sortable: false },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v),
+  { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
+  { key: 'montant_tva',    label: 'TVA',         render: v => formatEur(v),
     editable: { type: 'number', step: '0.01', min: '0' } },
-  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
+  { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
-  { key: 'categorie',   label: 'Catégorie',
+  { key: 'categorie',      label: 'Catégorie',
     editable: { type: 'select', options: row => row._type === 'entree' ? CAT_ENTREES_OPTIONS : CAT_SORTIES_OPTIONS } },
-  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
+  { key: 'statut',         label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
     editable: { type: 'select', options: STATUT_OPTIONS } },
+  { key: 'has_attachment', label: '📎',          render: (_, row) => <AttachmentBadge row={row} />, sortable: false },
 ]
 
 const COLUMNS_ENTREES = [
-  { key: 'date',        label: 'Date',        render: v => formatDate(v),
+  { key: 'date',           label: 'Date',        render: v => formatDate(v),
     editable: { type: 'date' } },
-  { key: 'client',      label: 'Client',
+  { key: 'client',         label: 'Client',
     editable: { type: 'text' } },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v),
+  { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
+  { key: 'montant_tva',    label: 'TVA',         render: v => formatEur(v),
     editable: { type: 'number', step: '0.01', min: '0' } },
-  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
+  { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
-  { key: 'categorie',   label: 'Catégorie',
+  { key: 'categorie',      label: 'Catégorie',
     editable: { type: 'select', options: CAT_ENTREES_OPTIONS } },
-  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
+  { key: 'statut',         label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
     editable: { type: 'select', options: STATUT_OPTIONS } },
+  { key: 'has_attachment', label: '📎',          render: (_, row) => <AttachmentBadge row={row} />, sortable: false },
 ]
 
 const COLUMNS_SORTIES = [
-  { key: 'date',        label: 'Date',        render: v => formatDate(v),
+  { key: 'date',           label: 'Date',        render: v => formatDate(v),
     editable: { type: 'date' } },
-  { key: 'fournisseur', label: 'Fournisseur',
+  { key: 'fournisseur',    label: 'Fournisseur',
     editable: { type: 'text' } },
-  { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v),
+  { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
+  { key: 'montant_tva',    label: 'TVA',         render: v => formatEur(v),
     editable: { type: 'number', step: '0.01', min: '0' } },
-  { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
+  { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
-  { key: 'categorie',   label: 'Catégorie',
+  { key: 'categorie',      label: 'Catégorie',
     editable: { type: 'select', options: CAT_SORTIES_OPTIONS } },
-  { key: 'statut',      label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
+  { key: 'statut',         label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
     editable: { type: 'select', options: STATUT_OPTIONS } },
+  { key: 'has_attachment', label: '📎',          render: (_, row) => <AttachmentBadge row={row} />, sortable: false },
 ]
 
 function Pagination({ page, totalPages, onChange }) {

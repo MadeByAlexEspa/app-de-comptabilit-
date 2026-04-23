@@ -29,8 +29,34 @@ function ventilerParTaux(rows) {
 }
 
 function getTvaReportRange(db, debut, fin, workspaceId) {
-  const rawFactures = db.prepare(`SELECT * FROM factures WHERE date >= ? AND date <= ? ORDER BY date`).all(debut, fin);
-  const rawDepenses = db.prepare(`SELECT * FROM depenses WHERE date >= ? AND date <= ? ORDER BY date`).all(debut, fin);
+  const rawFactures = db.prepare(`
+    SELECT f.*,
+      COALESCE(
+        (SELECT has_attachment FROM qonto_imports WHERE local_type='facture' AND local_id=f.id),
+        (SELECT has_attachment FROM shine_imports  WHERE local_type='facture' AND local_id=f.id),
+        0
+      ) AS has_attachment,
+      CASE
+        WHEN (SELECT 1 FROM qonto_imports WHERE local_type='facture' AND local_id=f.id) THEN 'qonto'
+        WHEN (SELECT 1 FROM shine_imports  WHERE local_type='facture' AND local_id=f.id) THEN 'shine'
+        ELSE NULL
+      END AS bank_source
+    FROM factures f WHERE f.date >= ? AND f.date <= ? ORDER BY f.date
+  `).all(debut, fin);
+  const rawDepenses = db.prepare(`
+    SELECT d.*,
+      COALESCE(
+        (SELECT has_attachment FROM qonto_imports WHERE local_type='depense' AND local_id=d.id),
+        (SELECT has_attachment FROM shine_imports  WHERE local_type='depense' AND local_id=d.id),
+        0
+      ) AS has_attachment,
+      CASE
+        WHEN (SELECT 1 FROM qonto_imports WHERE local_type='depense' AND local_id=d.id) THEN 'qonto'
+        WHEN (SELECT 1 FROM shine_imports  WHERE local_type='depense' AND local_id=d.id) THEN 'shine'
+        ELSE NULL
+      END AS bank_source
+    FROM depenses d WHERE d.date >= ? AND d.date <= ? ORDER BY d.date
+  `).all(debut, fin);
 
   const detailFactures = decryptRows(rawFactures, FACTURE_FIELDS, workspaceId);
   const detailDepenses = decryptRows(rawDepenses, DEPENSE_FIELDS, workspaceId);
