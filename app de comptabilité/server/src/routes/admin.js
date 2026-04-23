@@ -23,6 +23,7 @@ const loginRouter = Router();
 
 loginRouter.post('/login', (req, res) => {
   const { username, code } = req.body;
+  console.log('[admin login] attempt — username_match:', username === ADMIN_USERNAME, '| code_match:', code === ADMIN_CODE, '| env_set:', !!ADMIN_USERNAME && !!ADMIN_CODE);
   if (!username || !code) {
     return res.status(400).json({ error: 'username et code requis' });
   }
