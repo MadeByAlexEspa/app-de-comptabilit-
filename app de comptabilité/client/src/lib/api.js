@@ -157,9 +157,13 @@ async function adminRequest(path, options = {}) {
   })
 
   if (res.status === 401) {
-    localStorage.removeItem('admin_token')
-    window.location.href = '/admin/login'
-    throw new Error('Session admin expirée')
+    const err = await res.json().catch(() => null)
+    const isLoginRoute = path.endsWith('/login')
+    if (!isLoginRoute) {
+      localStorage.removeItem('admin_token')
+      window.location.href = '/admin/login'
+    }
+    throw new Error(err?.error || 'Session admin expirée')
   }
 
   if (!res.ok) {
