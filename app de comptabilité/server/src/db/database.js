@@ -322,7 +322,7 @@ for (const [ancien, nouveau] of MIGRATION_DEPENSES) {
 db.run("UPDATE factures SET categorie = REPLACE(categorie, ' - ', ' \u2013 ') WHERE categorie LIKE '% - %'");
 db.run("UPDATE depenses SET categorie = REPLACE(categorie, ' - ', ' \u2013 ') WHERE categorie LIKE '% - %'");
 
-// ── Seed data ─────────────────────────────────────────────────────────────────
+// ── Seed data (développement uniquement) ──────────────────────────────────────
 // Only insert seed data when the tables are empty to avoid duplicates on restart
 
 function round2(n) {
@@ -330,7 +330,7 @@ function round2(n) {
 }
 
 const factureCount = db.get('SELECT COUNT(*) AS cnt FROM factures');
-if (factureCount.cnt === 0) {
+if (process.env.NODE_ENV === 'development' && factureCount.cnt === 0) {
   const insertFacture = db.prepare(`
     INSERT INTO factures (numero, date, client, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
     VALUES (@numero, @date, @client, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
@@ -400,7 +400,7 @@ if (factureCount.cnt === 0) {
 }
 
 const depenseCount = db.get('SELECT COUNT(*) AS cnt FROM depenses');
-if (depenseCount.cnt === 0) {
+if (process.env.NODE_ENV === 'development' && depenseCount.cnt === 0) {
   const insertDepense = db.prepare(`
     INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
     VALUES (@date, @fournisseur, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
