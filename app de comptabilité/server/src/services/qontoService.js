@@ -19,6 +19,17 @@ function round2(n) {
   return Math.round(n * 100) / 100;
 }
 
+// Fix UTF-8 bytes misinterpreted as Latin-1 (mojibake: "Ã©" → "é")
+function fixMojibake(str) {
+  if (typeof str !== 'string') return str;
+  try {
+    const candidate = Buffer.from(str, 'latin1').toString('utf8');
+    return candidate.includes('�') ? str : candidate;
+  } catch {
+    return str;
+  }
+}
+
 // Look up the most recent PCG category used for this tiers name.
 // Searches factures (for credits) or dépenses (for debits) case-insensitively.
 function lookupTiersCategorie(db, tiers, side) {
@@ -146,8 +157,8 @@ function importTransaction(db, tx) {
   const montantTva = 0;
 
   const date  = (tx.settled_at || tx.emitted_at || '').slice(0, 10);
-  const label = (tx.label || '').trim() || (tx.side === 'credit' ? 'Virement reçu' : 'Paiement');
-  const note  = (tx.note  || '').trim();
+  const label = fixMojibake((tx.label || '').trim() || (tx.side === 'credit' ? 'Virement reçu' : 'Paiement'));
+  const note  = fixMojibake((tx.note  || '').trim());
 
   // Auto-assign category from tiers history, else use PCG default
   const categorie = lookupTiersCategorie(db, label, tx.side);
