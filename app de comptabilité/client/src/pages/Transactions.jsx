@@ -100,7 +100,8 @@ const COLUMNS_TOUS = [
   { key: '_tiers',      label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—',
     sortable: false },
   { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
+  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v),
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',   label: 'Catégorie',
@@ -115,7 +116,8 @@ const COLUMNS_ENTREES = [
   { key: 'client',      label: 'Client',
     editable: { type: 'text' } },
   { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
+  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v),
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',   label: 'Catégorie',
@@ -130,7 +132,8 @@ const COLUMNS_SORTIES = [
   { key: 'fournisseur', label: 'Fournisseur',
     editable: { type: 'text' } },
   { key: 'montant_ht',  label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v) },
+  { key: 'montant_tva', label: 'TVA',         render: v => formatEur(v),
+    editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'montant_ttc', label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',   label: 'Catégorie',
@@ -413,6 +416,11 @@ export default function Transactions() {
         const ht   = Math.round(ttc / (1 + taux / 100) * 100) / 100
         const tva  = Math.round((ttc - ht) * 100) / 100
         patch = { montant_ttc: ttc, montant_ht: ht, montant_tva: tva }
+      } else if (field === 'montant_tva') {
+        // TTC reste fixe ; HT = TTC - TVA
+        const tva = Math.round(newValue * 100) / 100
+        const ht  = Math.round((row.montant_ttc - tva) * 100) / 100
+        patch = { montant_tva: tva, montant_ht: ht }
       } else {
         patch = { [field]: newValue }
       }

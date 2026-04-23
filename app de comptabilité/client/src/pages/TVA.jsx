@@ -19,11 +19,16 @@ function round2(n) { return Math.round(n * 100) / 100 }
 // Recalcule les champs dépendants selon le champ modifié (TTC est la valeur de référence)
 function computePatch(field, newValue, row) {
   if (field === 'taux_tva') {
-    // TTC est la valeur de référence (montant bancaire réel) ; HT est déduit du taux
     const ttc = row.montant_ttc
     const ht  = round2(ttc / (1 + newValue / 100))
     const tva = round2(ttc - ht)
     return { taux_tva: newValue, montant_ht: ht, montant_tva: tva }
+  }
+  if (field === 'montant_tva') {
+    // TTC reste fixe ; HT = TTC - TVA
+    const tva = newValue
+    const ht  = round2(row.montant_ttc - tva)
+    return { montant_tva: tva, montant_ht: ht }
   }
   if (field === 'montant_ttc') {
     const ttc = newValue
@@ -487,7 +492,7 @@ export default function TVA() {
                         <td>{f.client}</td>
                         <td className={styles.right}>{formatEur(f.montant_ht)}</td>
                         <EditableCell value={f.taux_tva}    field="taux_tva"    row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
-                        <td className={styles.right}>{formatEur(f.montant_tva)}</td>
+                        <EditableCell value={f.montant_tva} field="montant_tva" row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                       </tr>
                     ))}
@@ -559,7 +564,7 @@ export default function TVA() {
                         <td>{d.fournisseur}</td>
                         <td className={styles.right}>{formatEur(d.montant_ht)}</td>
                         <EditableCell value={d.taux_tva}    field="taux_tva"    row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
-                        <td className={styles.right}>{formatEur(d.montant_tva)}</td>
+                        <EditableCell value={d.montant_tva} field="montant_tva" row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                       </tr>
                     ))}
