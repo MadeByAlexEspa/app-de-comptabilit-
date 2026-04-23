@@ -35,11 +35,15 @@ function wrapStmt(stmt) {
   };
 }
 
+const DATA_DIR = process.env.DATA_DIR
+  ? path.resolve(process.cwd(), process.env.DATA_DIR)
+  : path.join(__dirname, '../../data');
+
 const DB_PATH = process.env.DB_PATH
   ? path.resolve(process.cwd(), process.env.DB_PATH)
-  : path.join(__dirname, '../../data/compta.db');
+  : path.join(DATA_DIR, 'compta.db');
 
-// Ensure the data directory exists
+// Workspace DBs (data/{id}.db) live in the same directory as compta.db
 const dataDir = path.dirname(DB_PATH);
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
