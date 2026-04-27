@@ -36,7 +36,7 @@ function wrapStmt(stmt) {
 // ── Open master.db ─────────────────────────────────────────────────────────────
 
 const DATA_DIR = process.env.DATA_DIR
-  ? path.resolve(process.cwd(), process.env.DATA_DIR)
+  ? path.resolve(process.env.DATA_DIR)
   : path.join(__dirname, '../../data');
 
 const MASTER_PATH = path.join(DATA_DIR, 'master.db');

@@ -35,19 +35,23 @@ function wrapStmt(stmt) {
   };
 }
 
+// DATA_DIR doit être un chemin absolu en production (ex: /app/data sur Railway).
+// DB_PATH est ignoré volontairement : il était résolu relativement à process.cwd()
+// qui vaut /app/server (après "cd server &&"), ce qui sortait du volume monté.
 const DATA_DIR = process.env.DATA_DIR
-  ? path.resolve(process.cwd(), process.env.DATA_DIR)
+  ? path.resolve(process.env.DATA_DIR)
   : path.join(__dirname, '../../data');
 
-const DB_PATH = process.env.DB_PATH
-  ? path.resolve(process.cwd(), process.env.DB_PATH)
-  : path.join(DATA_DIR, 'compta.db');
+const DB_PATH = path.join(DATA_DIR, 'compta.db');
 
-// Workspace DBs (data/{id}.db) live in the same directory as compta.db
-const dataDir = path.dirname(DB_PATH);
+// Workspace DBs (data/{id}.db) live in DATA_DIR
+const dataDir = DATA_DIR;
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
+
+console.log(`[db] DATA_DIR  : ${dataDir}`);
+console.log(`[db] compta.db : ${DB_PATH}`);
 
 // Remove stale WAL lock file left by a previous crashed process.
 // node-sqlite3-wasm creates a lock directory; if the process crashes it is
