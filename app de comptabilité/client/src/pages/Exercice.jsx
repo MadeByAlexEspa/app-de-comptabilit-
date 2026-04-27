@@ -515,6 +515,12 @@ function BilanTab({ debut, fin }) {
                 liasse="2051 · DH"
                 montant={data.passif.capitaux_propres.compte_exploitant}
               />
+              <BilanRow
+                label={data.passif.capitaux_propres.report_a_nouveau >= 0 ? 'Report à nouveau (bénéficiaire)' : 'Report à nouveau (déficitaire)'}
+                compte="(11)"
+                liasse="2051 · DG"
+                montant={data.passif.capitaux_propres.report_a_nouveau}
+              />
               <tr className={`${bilanStyles.rowResultat} ${data.passif.capitaux_propres.resultat_exercice >= 0 ? bilanStyles.resultatPos : bilanStyles.resultatNeg}`}>
                 <td className={bilanStyles.rowLabel}>
                   Résultat de l'exercice

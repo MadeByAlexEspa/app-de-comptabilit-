@@ -5,63 +5,127 @@ function round2(n) {
 }
 
 const CAT_IMMO_INCORP = [
-  '201 \u2013 Frais d\u2019\u00e9tablissement',
-  '2051 \u2013 Concessions, brevets, licences, marques',
-  '2052 \u2013 Logiciels (d\u00e9veloppement interne)',
+  // Old labels
+  '201 – Frais d'établissement',
+  '2051 – Concessions, brevets, licences, marques',
+  '2052 – Logiciels (développement interne)',
+  // New labels
+  '2051 – Concessions, brevets, licences & marques',
+  '2052 – Logiciels développés en interne',
 ];
 const CAT_IMMO_CORP = [
-  '211 \u2013 Terrains',
-  '213 \u2013 Constructions',
-  '215 \u2013 Mat\u00e9riel et outillage industriel',
-  '218 \u2013 Autres immobilisations corporelles',
+  // Old labels
+  '211 – Terrains',
+  '213 – Constructions',
+  '215 – Matériel et outillage industriel',
+  '218 – Autres immobilisations corporelles',
+  // New labels
+  '215 – Matériel informatique & outillage',
+  '218 – Immobilisations corporelles (matériel bureautique)',
 ];
 
-const CAT_CAPITAL_SOCIAL   = '101 \u2013 Capital social (apport)';
-const CAT_APPORT_EXPL      = '108 \u2013 Apport de l\u2019exploitant';
-const CAT_EMPRUNT_RECU     = '164 \u2013 Emprunts bancaires re\u00e7us';
-const CAT_CC_ASSOC_RECU    = '455 \u2013 Avances en compte courant associ\u00e9';
-const CAT_PRELEV_EXPL      = '108 \u2013 Pr\u00e9l\u00e8vements de l\u2019exploitant';
-const CAT_EMPRUNT_REMBOURS = '164 \u2013 Remboursement d\u2019emprunt';
-const CAT_CC_ASSOC_REMBOURS = '455 \u2013 Remboursement compte courant associ\u00e9';
+const CAT_CAPITAL_SOCIAL   = '101 – Capital social (apport)';
+const CAT_APPORT_EXPL      = '108 – Apport de l'exploitant';
+const CAT_EMPRUNT_RECU     = '164 – Emprunts bancaires reçus';
+const CAT_CC_ASSOC_RECU    = '455 – Avances en compte courant associé';
+const CAT_PRELEV_EXPL      = '108 – Prélèvements de l'exploitant';
+const CAT_EMPRUNT_REMBOURS = '164 – Remboursement d'emprunt';
+const CAT_CC_ASSOC_REMBOURS = '455 – Remboursement compte courant associé';
 
 const CAT_PNL_PRODUITS = [
-  '706 \u2013 Prestations de services',
-  '701 \u2013 Ventes de produits finis',
-  '707 \u2013 Ventes de marchandises',
-  '708 \u2013 Produits des activit\u00e9s annexes',
-  '74 \u2013 Subventions d\u2019exploitation',
-  '75 \u2013 Autres produits de gestion courante',
-  '409 \u2013 Avoirs fournisseurs re\u00e7us',
-  '76 \u2013 Produits financiers',
-  '77 \u2013 Produits exceptionnels',
+  // CA
+  '706 – Prestations de services',
+  '701 – Ventes de produits finis',
+  '707 – Ventes de marchandises',
+  '708 – Produits des activités annexes',
+  '706 – Abonnements SaaS (MRR / ARR)',
+  '706.1 – Licences logicielles',
+  '706.2 – Abonnements annuels prépayés',
+  '706.3 – Abonnements mensuels',
+  '708 – Consulting & prestations annexes',
+  '708.1 – Formation & onboarding clients',
+  '708.2 – Intégrations & développements sur mesure',
+  '708.3 – Support premium / SLA',
+  '708.4 – Revenus de marketplace / commissions',
+  // Autres produits
+  '74 – Subventions d'exploitation',
+  '741 – Aides BPI / innovation (CIR, CII)',
+  '742 – Subventions d'équipement',
+  '75 – Autres produits de gestion courante',
+  '409 – Avoirs fournisseurs reçus',
+  '76 – Produits financiers',
+  '77 – Produits exceptionnels',
 ];
+
 const CAT_PNL_CHARGES = [
-  '604 \u2013 Achats de prestations de services',
-  '606 \u2013 Fournitures et petits \u00e9quipements',
-  '607 \u2013 Achats de marchandises',
-  '611 \u2013 Sous-traitance g\u00e9n\u00e9rale',
-  '613 \u2013 Locations & charges locatives',
-  '615 \u2013 Entretien et r\u00e9parations',
-  '616 \u2013 Primes d\u2019assurance',
-  '618 \u2013 Abonnements & frais informatiques',
-  '622 \u2013 Honoraires et r\u00e9mun\u00e9rations d\u2019interm\u00e9diaires',
-  '623 \u2013 Publicit\u00e9 & communication',
-  '624 \u2013 Transports de biens',
-  '625 \u2013 D\u00e9placements, missions & r\u00e9ceptions',
-  '626 \u2013 Frais postaux & t\u00e9l\u00e9communications',
-  '627 \u2013 Services bancaires & assimil\u00e9s',
-  '631 \u2013 Imp\u00f4ts, taxes et versements assimil\u00e9s sur r\u00e9mun\u00e9rations',
-  '635 \u2013 Autres imp\u00f4ts, taxes et versements assimil\u00e9s',
-  '641 \u2013 R\u00e9mun\u00e9rations du personnel',
-  '645 \u2013 Charges sociales & cotisations',
-  '421 \u2013 Notes de frais du personnel',
-  '681 \u2013 Dotations aux amortissements d\u2019exploitation',
-  '661 \u2013 Charges d\u2019int\u00e9r\u00eats',
-  '668 \u2013 Autres charges financi\u00e8res',
-  '671 \u2013 Charges exceptionnelles sur op\u00e9rations de gestion',
-  '675 \u2013 Valeurs comptables des \u00e9l\u00e9ments c\u00e9d\u00e9s',
-  '709 \u2013 Avoirs & remboursements clients',
-  '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
+  // Achats
+  '604 – Achats de prestations de services',
+  '604 – Achats de prestations de développement',
+  '606 – Fournitures et petits équipements',
+  '606 – Fournitures & petits équipements',
+  '607 – Achats de marchandises',
+  // Charges externes
+  '611 – Sous-traitance générale',
+  '611 – Sous-traitance technique (freelances, agences)',
+  '613 – Locations & charges locatives',
+  '6135 – Coworking & espaces de travail partagés',
+  '615 – Entretien et réparations',
+  '615 – Entretien & réparations',
+  '616 – Primes d'assurance',
+  '616 – Primes d'assurance (RC pro, cyber…)',
+  '618 – Abonnements & frais informatiques',
+  '618 – Autres abonnements & frais informatiques',
+  '618.1 – Hébergement cloud (AWS, GCP, Azure)',
+  '618.2 – Base de données & stockage cloud',
+  '618.3 – CDN, DNS & sécurité réseau',
+  '618.4 – Monitoring & observabilité (Datadog, Sentry…)',
+  '618.5 – CRM (Salesforce, HubSpot…)',
+  '618.6 – Support client (Intercom, Zendesk…)',
+  '618.7 – Productivité & collaboration (Notion, Slack…)',
+  '618.8 – Analytics & BI (Mixpanel, Amplitude…)',
+  '618.9 – Paiement & facturation (Stripe, Paddle…)',
+  '618.10 – Emailing & marketing automation',
+  '618.11 – Sécurité & conformité (auth, SSO, DLP)',
+  '622 – Honoraires et rémunérations d'intermédiaires',
+  '622 – Autres honoraires & rémunérations intermédiaires',
+  '622.1 – Honoraires comptables & juridiques',
+  '622.2 – Conseil & consulting stratégique',
+  '623 – Publicité & communication',
+  '623 – Autres dépenses publicité & communication',
+  '623.1 – Publicité digitale (Google Ads, Meta, LinkedIn…)',
+  '623.2 – SEO & content marketing',
+  '623.3 – Partenariats & affiliation',
+  '623.4 – Événements, salons & conférences',
+  '623.5 – Création de contenu & design',
+  '624 – Transports de biens',
+  '625 – Déplacements, missions & réceptions',
+  '626 – Frais postaux & télécommunications',
+  '627 – Services bancaires & assimilés',
+  '627 – Services bancaires & commissions',
+  // Impôts taxes
+  '631 – Impôts, taxes et versements assimilés sur rémunérations',
+  '631 – Impôts & taxes sur rémunérations',
+  '635 – Autres impôts, taxes et versements assimilés',
+  '635 – Autres impôts, taxes & versements assimilés',
+  // Personnel
+  '641 – Rémunérations du personnel',
+  '645 – Charges sociales & cotisations',
+  '645 – Charges sociales & cotisations patronales',
+  '648 – Mutuelle, tickets-restaurant & avantages',
+  '421 – Notes de frais du personnel',
+  // Dotations
+  '681 – Dotations aux amortissements d'exploitation',
+  // Financières
+  '661 – Charges d'intérêts',
+  '668 – Autres charges financières',
+  // Exceptionnelles
+  '671 – Charges exceptionnelles sur opérations de gestion',
+  '671 – Charges exceptionnelles',
+  '675 – Valeurs comptables des éléments cédés',
+  // Avoirs clients (déduits du CA)
+  '709 – Avoirs & remboursements clients',
+  // IS
+  '695 – Impôt sur les bénéfices (IS)',
 ];
 
 function sumCat(rows, categories, dateFilter) {
@@ -143,6 +207,19 @@ function getBilanReport(db, date, debut, workspaceId) {
   const pnlProdSet = new Set(CAT_PNL_PRODUITS);
   const pnlChgSet  = new Set(CAT_PNL_CHARGES);
 
+  // Report à nouveau (11) — bénéfices/pertes des exercices antérieurs non distribués
+  // Approximation : cumul des résultats des exercices antérieurs à l'exercice courant.
+  // On prend tous les produits/charges hors période courante (avant debutExercice).
+  const beforePeriod = row => row.date < debutExercice;
+  let produitsAnterieurs = 0, chargesAnterieures = 0;
+  for (const r of allFactures) {
+    if (beforePeriod(r) && pnlProdSet.has(r.categorie)) produitsAnterieurs = round2(produitsAnterieurs + (r.montant_ht || 0));
+  }
+  for (const r of allDepenses) {
+    if (beforePeriod(r) && pnlChgSet.has(r.categorie)) chargesAnterieures = round2(chargesAnterieures + (r.montant_ht || 0));
+  }
+  const reportANouveau = round2(produitsAnterieurs - chargesAnterieures);
+
   let revenusExerc = 0, chargesExerc = 0;
   for (const r of allFactures) {
     if (byPeriod(r) && pnlProdSet.has(r.categorie)) revenusExerc = round2(revenusExerc + (r.montant_ht || 0));
@@ -151,7 +228,7 @@ function getBilanReport(db, date, debut, workspaceId) {
     if (byPeriod(r) && pnlChgSet.has(r.categorie)) chargesExerc = round2(chargesExerc + (r.montant_ht || 0));
   }
   const resultatExercice = round2(revenusExerc - chargesExerc);
-  const totalCapitauxPropres = round2(capitalSocial + compteExploitant + resultatExercice);
+  const totalCapitauxPropres = round2(capitalSocial + compteExploitant + reportANouveau + resultatExercice);
 
   // ── PASSIF – DETTES FINANCIÈRES
   const empruntsRecus    = sumCatSingle(allFactures, CAT_EMPRUNT_RECU);
@@ -192,6 +269,7 @@ function getBilanReport(db, date, debut, workspaceId) {
       capitaux_propres: {
         capital_social:      capitalSocial,
         compte_exploitant:   compteExploitant,
+        report_a_nouveau:    reportANouveau,
         resultat_exercice:   resultatExercice,
         total: totalCapitauxPropres,
       },
