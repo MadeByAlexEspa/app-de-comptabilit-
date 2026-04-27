@@ -1,42 +1,28 @@
 /**
- * Email service — wraps nodemailer with SMTP env-var config.
+ * Email service — uses Resend HTTP API (pas de ports SMTP bloqués).
  *
- * Required env vars (in server/.env) :
- *   SMTP_HOST   — ex: smtp.gmail.com
- *   SMTP_PORT   — ex: 587
- *   SMTP_USER   — ex: vous@gmail.com
- *   SMTP_PASS   — ex: mot-de-passe-app (pas votre MDP normal)
- *   SMTP_FROM   — ex: "Compte-Pote <noreply@compte-pote.fr>"
- *   APP_URL     — ex: https://compte-pote.fr  (frontend origin)
+ * Required env var:
+ *   RESEND_API_KEY — clé API depuis resend.com (ex: re_xxxxxxxxxxxx)
+ *   RESEND_FROM    — expéditeur vérifié (ex: "Compte-Pote <noreply@tondomaine.com>")
+ *                    Sans domaine custom, utiliser: onboarding@resend.dev (test seulement)
+ *   APP_URL        — ex: https://app-compte-pote.up.railway.app
  *
- * Si SMTP_HOST est absent, le lien est loggé en console (mode dev).
+ * Si RESEND_API_KEY est absent, le lien est loggé en console (mode dev).
  */
-const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 
-const SMTP_CONFIGURED = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
+const RESEND_CONFIGURED = !!process.env.RESEND_API_KEY;
 
-console.log(`[email] SMTP configured: ${SMTP_CONFIGURED} | host=${process.env.SMTP_HOST || 'N/A'} | user=${process.env.SMTP_USER || 'N/A'}`);
+console.log(`[email] Resend configured: ${RESEND_CONFIGURED}`);
 
-let _transporter = null;
-
-function getTransporter() {
-  if (!_transporter && SMTP_CONFIGURED) {
-    _transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST,
-      port: Number(process.env.SMTP_PORT) || 587,
-      secure: Number(process.env.SMTP_PORT) === 465,
-      family: 4, // force IPv4 (Railway ne supporte pas IPv6 sortant)
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-    });
-  }
-  return _transporter;
+let _resend = null;
+function getResend() {
+  if (!_resend) _resend = new Resend(process.env.RESEND_API_KEY);
+  return _resend;
 }
 
 async function sendPasswordResetEmail(email, resetUrl) {
-  const from = process.env.SMTP_FROM || '"Compte-Pote" <noreply@compte-pote.fr>';
+  const from = process.env.RESEND_FROM || 'Compte-Pote <onboarding@resend.dev>';
 
   const html = `
     <div style="font-family:sans-serif;max-width:480px;margin:0 auto">
@@ -59,21 +45,22 @@ async function sendPasswordResetEmail(email, resetUrl) {
 
   console.log(`[email] Sending reset link to ${email}: ${resetUrl}`);
 
-  if (!SMTP_CONFIGURED) {
-    console.log('[email] SMTP not configured — email skipped (set SMTP_HOST, SMTP_USER, SMTP_PASS)');
+  if (!RESEND_CONFIGURED) {
+    console.log('[email] RESEND_API_KEY absent — email skipped (mode dev)');
     return;
   }
 
   try {
-    const info = await getTransporter().sendMail({
+    const { data, error } = await getResend().emails.send({
       from,
       to: email,
       subject: 'Réinitialisation de votre mot de passe Compte-Pote',
       html,
     });
-    console.log(`[email] Sent OK — messageId: ${info.messageId}`);
+    if (error) throw new Error(error.message);
+    console.log(`[email] Sent OK — id: ${data.id}`);
   } catch (err) {
-    console.error(`[email] Send FAILED — ${err.message}`, err);
+    console.error(`[email] Send FAILED — ${err.message}`);
     throw err;
   }
 }

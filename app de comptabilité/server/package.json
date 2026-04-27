@@ -21,7 +21,8 @@
     "jsonwebtoken": "^9.0.3",
     "multer": "^2.1.1",
     "node-sqlite3-wasm": "^0.8.55",
-    "nodemailer": "^8.0.7"
+    "nodemailer": "^8.0.7",
+    "resend": "^6.12.2"
   },
   "devDependencies": {
     "jest": "^30.3.0",
