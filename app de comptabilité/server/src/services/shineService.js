@@ -194,11 +194,21 @@ function importTransaction(db, tx) {
   const amountCents = typeof tx.amount === 'number' ? Math.abs(tx.amount) : 0;
   const side        = (tx.amount ?? 0) >= 0 ? 'credit' : 'debit';
 
-  // TVA: no tax data available from the bank — default to 0%
   const montantTtc = round2(amountCents / 100);
-  const taux       = 0;
-  const montantHt  = montantTtc;
-  const montantTva = 0;
+
+  // Use VAT data from Shine when available (vatAmount in euros, vatRate in %)
+  const rawVat  = tx.vatAmount  ?? tx.vat_amount  ?? null;
+  const rawRate = tx.vatRate    ?? tx.vat_rate     ?? null;
+  let taux, montantTva, montantHt;
+  if (rawVat && rawVat > 0) {
+    montantTva = round2(tx.vatAmount !== undefined ? rawVat : rawVat / 100);
+    taux       = rawRate != null ? parseFloat(rawRate) : round2((montantTva / montantTtc) * 100);
+    montantHt  = round2(montantTtc - montantTva);
+  } else {
+    taux       = 0;
+    montantTva = 0;
+    montantHt  = montantTtc;
+  }
 
   const date          = (tx.executedAt || tx.createdAt || '').slice(0, 10);
   const label         = fixMojibake(

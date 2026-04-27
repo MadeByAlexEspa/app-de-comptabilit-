@@ -199,10 +199,17 @@ function importTransaction(db, tx) {
   const amountCents = tx.amount_cents ?? Math.round((tx.amount || 0) * 100);
   const montantTtc  = round2(amountCents / 100);
 
-  // TVA: no tax data available from the bank — default to 0%
-  const taux       = 0;
-  const montantHt  = montantTtc;
-  const montantTva = 0;
+  // Use VAT data from Qonto when available, otherwise default to 0 %
+  let taux, montantTva, montantHt;
+  if (tx.vat_amount && tx.vat_amount > 0) {
+    montantTva = round2(tx.vat_amount / 100);
+    taux       = tx.vat_rate != null ? parseFloat(tx.vat_rate) : round2((montantTva / montantTtc) * 100);
+    montantHt  = round2(montantTtc - montantTva);
+  } else {
+    taux       = 0;
+    montantTva = 0;
+    montantHt  = montantTtc;
+  }
 
   const date          = (tx.settled_at || tx.emitted_at || '').slice(0, 10);
   const label         = fixMojibake((tx.label || '').trim() || (tx.side === 'credit' ? 'Virement reçu' : 'Paiement'));
