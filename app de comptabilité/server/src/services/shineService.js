@@ -197,13 +197,18 @@ function importTransaction(db, tx) {
   const montantTtc = round2(amountCents / 100);
 
   // Use VAT data from Shine when available (vatAmount in euros, vatRate in %)
+  // Priorité au taux : recalcule HT/TVA depuis TTC pour garantir la cohérence.
   const rawVat  = tx.vatAmount  ?? tx.vat_amount  ?? null;
   const rawRate = tx.vatRate    ?? tx.vat_rate     ?? null;
   let taux, montantTva, montantHt;
-  if (rawVat && rawVat > 0) {
+  if (rawRate != null && parseFloat(rawRate) > 0) {
+    taux       = parseFloat(rawRate);
+    montantHt  = round2(montantTtc / (1 + taux / 100));
+    montantTva = round2(montantTtc - montantHt);
+  } else if (rawVat && rawVat > 0) {
     montantTva = round2(tx.vatAmount !== undefined ? rawVat : rawVat / 100);
     montantHt  = round2(montantTtc - montantTva);
-    taux       = rawRate != null ? parseFloat(rawRate) : (montantHt > 0 ? round2((montantTva / montantHt) * 100) : 0);
+    taux       = montantHt > 0 ? round2((montantTva / montantHt) * 100) : 0;
   } else {
     taux       = 0;
     montantTva = 0;

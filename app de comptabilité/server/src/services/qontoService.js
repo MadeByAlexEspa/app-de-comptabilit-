@@ -200,11 +200,17 @@ function importTransaction(db, tx) {
   const montantTtc  = round2(amountCents / 100);
 
   // Use VAT data from Qonto when available, otherwise default to 0 %
+  // Priorité au taux (vat_rate) : recalcule HT/TVA depuis TTC pour garantir la cohérence.
+  // Le montant TVA fourni par la banque peut être arrondi différemment — on ne lui fait pas confiance.
   let taux, montantTva, montantHt;
-  if (tx.vat_amount && tx.vat_amount > 0) {
+  if (tx.vat_rate != null && parseFloat(tx.vat_rate) > 0) {
+    taux       = parseFloat(tx.vat_rate);
+    montantHt  = round2(montantTtc / (1 + taux / 100));
+    montantTva = round2(montantTtc - montantHt);
+  } else if (tx.vat_amount && tx.vat_amount > 0) {
     montantTva = round2(tx.vat_amount / 100);
     montantHt  = round2(montantTtc - montantTva);
-    taux       = tx.vat_rate != null ? parseFloat(tx.vat_rate) : (montantHt > 0 ? round2((montantTva / montantHt) * 100) : 0);
+    taux       = montantHt > 0 ? round2((montantTva / montantHt) * 100) : 0;
   } else {
     taux       = 0;
     montantTva = 0;
