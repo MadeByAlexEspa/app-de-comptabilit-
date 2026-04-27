@@ -14,6 +14,9 @@ import Admin from './pages/Admin.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import InviteAccept from './pages/InviteAccept.jsx'
 import Landing from './pages/Landing.jsx'
+import CGU from './pages/CGU.jsx'
+import MentionsLegales from './pages/MentionsLegales.jsx'
+import PolitiqueConfidentialite from './pages/PolitiqueConfidentialite.jsx'
 
 function PrivateRoute({ children }) {
   const { token } = useAuth()
@@ -36,6 +39,9 @@ function AppRoutes() {
       <Route path="/login"          element={<Login />} />
       <Route path="/register"       element={<Register />} />
       <Route path="/invite/:token"  element={<InviteAccept />} />
+      <Route path="/cgu"                        element={<CGU />} />
+      <Route path="/mentions-legales"           element={<MentionsLegales />} />
+      <Route path="/politique-confidentialite"  element={<PolitiqueConfidentialite />} />
 
       {/* ── Back-office admin (hors Layout utilisateur) ── */}
       <Route path="/admin/login" element={<AdminLogin />} />

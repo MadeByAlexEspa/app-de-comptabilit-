@@ -28,61 +28,186 @@ const STATUT_OPTIONS = [
 ]
 
 const CAT_ENTREES_OPTIONS = [
-  '706 \u2013 Prestations de services',
-  '701 \u2013 Ventes de produits finis',
-  '707 \u2013 Ventes de marchandises',
-  '708 \u2013 Produits des activit\u00e9s annexes',
-  '409 \u2013 Avoirs fournisseurs re\u00e7us',
-  '74 \u2013 Subventions d\u2019exploitation',
-  '75 \u2013 Autres produits de gestion courante',
-  '76 \u2013 Produits financiers',
-  '77 \u2013 Produits exceptionnels',
-  '101 \u2013 Capital social (apport)',
-  '108 \u2013 Apport de l\u2019exploitant',
-  '164 \u2013 Emprunts bancaires re\u00e7us',
-  '455 \u2013 Avances en compte courant associ\u00e9',
-  '58 \u2013 Virement interne entre comptes',
-].map(v => ({ value: v, label: v }))
+  {
+    group: 'Abonnements & Licences SaaS',
+    options: [
+      '706 \u2013 Abonnements SaaS (MRR / ARR)',
+      '706.1 \u2013 Licences logicielles',
+      '706.2 \u2013 Abonnements annuels pr\u00e9pay\u00e9s',
+      '706.3 \u2013 Abonnements mensuels',
+    ],
+  },
+  {
+    group: 'Services & Prestations',
+    options: [
+      '708 \u2013 Consulting & prestations annexes',
+      '708.1 \u2013 Formation & onboarding clients',
+      '708.2 \u2013 Int\u00e9grations & d\u00e9veloppements sur mesure',
+      '708.3 \u2013 Support premium / SLA',
+      '708.4 \u2013 Revenus de marketplace / commissions',
+      '701 \u2013 Ventes de produits finis',
+      '707 \u2013 Ventes de marchandises',
+    ],
+  },
+  {
+    group: 'Remboursements & Avoirs',
+    options: [
+      '409 \u2013 Avoirs fournisseurs re\u00e7us',
+      '709 \u2013 Avoirs & remboursements clients',
+    ],
+  },
+  {
+    group: 'Subventions & Aides publiques',
+    options: [
+      '74 \u2013 Subventions d\'exploitation',
+      '741 \u2013 Aides BPI / innovation (CIR, CII)',
+      '742 \u2013 Subventions d\'\u00e9quipement',
+    ],
+  },
+  {
+    group: 'Autres produits',
+    options: [
+      '75 \u2013 Autres produits de gestion courante',
+      '76 \u2013 Produits financiers',
+      '77 \u2013 Produits exceptionnels',
+    ],
+  },
+  {
+    group: 'Financement',
+    options: [
+      '101 \u2013 Capital social (apport)',
+      '108 \u2013 Apport de l\'exploitant',
+      '164 \u2013 Emprunts bancaires re\u00e7us',
+      '455 \u2013 Avances en compte courant associ\u00e9',
+    ],
+  },
+  {
+    group: 'Op\u00e9rations internes',
+    options: [
+      '58 \u2013 Virement interne entre comptes',
+    ],
+  },
+].map(g => ({ group: g.group, options: g.options.map(v => ({ value: v, label: v })) }))
 
 const CAT_SORTIES_OPTIONS = [
-  '604 \u2013 Achats de prestations de services',
-  '606 \u2013 Fournitures et petits \u00e9quipements',
-  '607 \u2013 Achats de marchandises',
-  '611 \u2013 Sous-traitance g\u00e9n\u00e9rale',
-  '613 \u2013 Locations & charges locatives',
-  '615 \u2013 Entretien et r\u00e9parations',
-  '616 \u2013 Primes d\u2019assurance',
-  '618 \u2013 Abonnements & frais informatiques',
-  '622 \u2013 Honoraires et r\u00e9mun\u00e9rations d\u2019interm\u00e9diaires',
-  '623 \u2013 Publicit\u00e9 & communication',
-  '624 \u2013 Transports de biens',
-  '625 \u2013 D\u00e9placements, missions & r\u00e9ceptions',
-  '626 \u2013 Frais postaux & t\u00e9l\u00e9communications',
-  '627 \u2013 Services bancaires & assimil\u00e9s',
-  '631 \u2013 Imp\u00f4ts, taxes et versements assimil\u00e9s sur r\u00e9mun\u00e9rations',
-  '635 \u2013 Autres imp\u00f4ts, taxes et versements assimil\u00e9s',
-  '641 \u2013 R\u00e9mun\u00e9rations du personnel',
-  '645 \u2013 Charges sociales & cotisations',
-  '421 \u2013 Notes de frais du personnel',
-  '681 \u2013 Dotations aux amortissements d\u2019exploitation',
-  '661 \u2013 Charges d\u2019int\u00e9r\u00eats',
-  '668 \u2013 Autres charges financi\u00e8res',
-  '709 \u2013 Avoirs & remboursements clients',
-  '671 \u2013 Charges exceptionnelles sur op\u00e9rations de gestion',
-  '675 \u2013 Valeurs comptables des \u00e9l\u00e9ments c\u00e9d\u00e9s',
-  '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
-  '201 \u2013 Frais d\u2019\u00e9tablissement',
-  '2052 \u2013 Logiciels (d\u00e9veloppement interne)',
-  '2051 \u2013 Concessions, brevets, licences, marques',
-  '211 \u2013 Terrains',
-  '213 \u2013 Constructions',
-  '215 \u2013 Mat\u00e9riel et outillage industriel',
-  '218 \u2013 Autres immobilisations corporelles',
-  '108 \u2013 Pr\u00e9l\u00e8vements de l\u2019exploitant',
-  '164 \u2013 Remboursement d\u2019emprunt',
-  '455 \u2013 Remboursement compte courant associ\u00e9',
-  '58 \u2013 Virement interne entre comptes',
-].map(v => ({ value: v, label: v }))
+  {
+    group: 'Infrastructure & H\u00e9bergement',
+    options: [
+      '618.1 \u2013 H\u00e9bergement cloud (AWS, GCP, Azure)',
+      '618.2 \u2013 Base de donn\u00e9es & stockage cloud',
+      '618.3 \u2013 CDN, DNS & s\u00e9curit\u00e9 r\u00e9seau',
+      '618.4 \u2013 Monitoring & observabilit\u00e9 (Datadog, Sentry\u2026)',
+      '618 \u2013 Autres abonnements & frais informatiques',
+    ],
+  },
+  {
+    group: 'Outils SaaS tiers',
+    options: [
+      '618.5 \u2013 CRM (Salesforce, HubSpot\u2026)',
+      '618.6 \u2013 Support client (Intercom, Zendesk\u2026)',
+      '618.7 \u2013 Productivit\u00e9 & collaboration (Notion, Slack\u2026)',
+      '618.8 \u2013 Analytics & BI (Mixpanel, Amplitude\u2026)',
+      '618.9 \u2013 Paiement & facturation (Stripe, Paddle\u2026)',
+      '618.10 \u2013 Emailing & marketing automation',
+      '618.11 \u2013 S\u00e9curit\u00e9 & conformit\u00e9 (auth, SSO, DLP)',
+    ],
+  },
+  {
+    group: 'D\u00e9veloppement & Propri\u00e9t\u00e9 intellectuelle',
+    options: [
+      '2052 \u2013 Logiciels d\u00e9velopp\u00e9s en interne',
+      '2051 \u2013 Concessions, brevets, licences & marques',
+      '604 \u2013 Achats de prestations de d\u00e9veloppement',
+      '611 \u2013 Sous-traitance technique (freelances, agences)',
+    ],
+  },
+  {
+    group: 'Personnel & RH',
+    options: [
+      '641 \u2013 R\u00e9mun\u00e9rations du personnel',
+      '645 \u2013 Charges sociales & cotisations patronales',
+      '648 \u2013 Mutuelle, tickets-restaurant & avantages',
+      '421 \u2013 Notes de frais du personnel',
+      '631 \u2013 Imp\u00f4ts & taxes sur r\u00e9mun\u00e9rations',
+    ],
+  },
+  {
+    group: 'Marketing & Acquisition',
+    options: [
+      '623.1 \u2013 Publicit\u00e9 digitale (Google Ads, Meta, LinkedIn\u2026)',
+      '623.2 \u2013 SEO & content marketing',
+      '623.3 \u2013 Partenariats & affiliation',
+      '623.4 \u2013 \u00c9v\u00e9nements, salons & conf\u00e9rences',
+      '623.5 \u2013 Cr\u00e9ation de contenu & design',
+      '623 \u2013 Autres d\u00e9penses publicit\u00e9 & communication',
+    ],
+  },
+  {
+    group: 'Locaux & Mat\u00e9riel',
+    options: [
+      '613 \u2013 Locations & charges locatives',
+      '6135 \u2013 Coworking & espaces de travail partag\u00e9s',
+      '606 \u2013 Fournitures & petits \u00e9quipements',
+      '615 \u2013 Entretien & r\u00e9parations',
+      '218 \u2013 Immobilisations corporelles (mat\u00e9riel bureautique)',
+      '215 \u2013 Mat\u00e9riel informatique & outillage',
+      '213 \u2013 Constructions',
+      '211 \u2013 Terrains',
+    ],
+  },
+  {
+    group: 'Frais g\u00e9n\u00e9raux',
+    options: [
+      '622.1 \u2013 Honoraires comptables & juridiques',
+      '622.2 \u2013 Conseil & consulting strat\u00e9gique',
+      '622 \u2013 Autres honoraires & r\u00e9mun\u00e9rations interm\u00e9diaires',
+      '616 \u2013 Primes d\'assurance (RC pro, cyber\u2026)',
+      '625 \u2013 D\u00e9placements, missions & r\u00e9ceptions',
+      '626 \u2013 Frais postaux & t\u00e9l\u00e9communications',
+      '627 \u2013 Services bancaires & commissions',
+      '624 \u2013 Transports de biens',
+      '607 \u2013 Achats de marchandises',
+    ],
+  },
+  {
+    group: 'Imp\u00f4ts & Taxes',
+    options: [
+      '635 \u2013 Autres imp\u00f4ts, taxes & versements assimil\u00e9s',
+      '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
+    ],
+  },
+  {
+    group: 'Charges financi\u00e8res & Exceptionnelles',
+    options: [
+      '661 \u2013 Charges d\'int\u00e9r\u00eats',
+      '668 \u2013 Autres charges financi\u00e8res',
+      '671 \u2013 Charges exceptionnelles',
+      '675 \u2013 Valeurs comptables des \u00e9l\u00e9ments c\u00e9d\u00e9s',
+    ],
+  },
+  {
+    group: 'Amortissements & Frais d\'\u00e9tablissement',
+    options: [
+      '681 \u2013 Dotations aux amortissements d\'exploitation',
+      '201 \u2013 Frais d\'\u00e9tablissement',
+    ],
+  },
+  {
+    group: 'Avoirs & Remboursements',
+    options: [
+      '709 \u2013 Avoirs & remboursements clients',
+    ],
+  },
+  {
+    group: 'Op\u00e9rations financi\u00e8res & internes',
+    options: [
+      '108 \u2013 Pr\u00e9l\u00e8vements de l\'exploitant',
+      '164 \u2013 Remboursement d\'emprunt',
+      '455 \u2013 Remboursement compte courant associ\u00e9',
+      '58 \u2013 Virement interne entre comptes',
+    ],
+  },
+].map(g => ({ group: g.group, options: g.options.map(v => ({ value: v, label: v })) }))
 
 function StatutBadge({ statut }) {
   const map = {
@@ -108,8 +233,8 @@ const COLUMNS_TOUS = [
   { key: '_tiers',         label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—',
     sortable: false },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva',    label: 'TVA',         render: v => formatEur(v),
-    editable: { type: 'number', step: '0.01', min: '0' } },
+  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
+    editable: { type: 'number', step: '0.5', min: '0', max: '100' } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',      label: 'Catégorie',
@@ -125,8 +250,8 @@ const COLUMNS_ENTREES = [
   { key: 'client',         label: 'Client',
     editable: { type: 'text' } },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva',    label: 'TVA',         render: v => formatEur(v),
-    editable: { type: 'number', step: '0.01', min: '0' } },
+  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
+    editable: { type: 'number', step: '0.5', min: '0', max: '100' } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',      label: 'Catégorie',
@@ -142,8 +267,8 @@ const COLUMNS_SORTIES = [
   { key: 'fournisseur',    label: 'Fournisseur',
     editable: { type: 'text' } },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'montant_tva',    label: 'TVA',         render: v => formatEur(v),
-    editable: { type: 'number', step: '0.01', min: '0' } },
+  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
+    editable: { type: 'number', step: '0.5', min: '0', max: '100' } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',      label: 'Catégorie',
@@ -427,11 +552,12 @@ export default function Transactions() {
         const ht   = Math.round(ttc / (1 + taux / 100) * 100) / 100
         const tva  = Math.round((ttc - ht) * 100) / 100
         patch = { montant_ttc: ttc, montant_ht: ht, montant_tva: tva }
-      } else if (field === 'montant_tva') {
-        // TTC reste fixe ; HT = TTC - TVA
-        const tva = Math.round(newValue * 100) / 100
-        const ht  = Math.round((row.montant_ttc - tva) * 100) / 100
-        patch = { montant_tva: tva, montant_ht: ht }
+      } else if (field === 'taux_tva') {
+        const taux = Math.round(newValue * 100) / 100
+        const ht   = row.montant_ht ?? 0
+        const tva  = Math.round(ht * taux / 100 * 100) / 100
+        const ttc  = Math.round((ht + tva) * 100) / 100
+        patch = { taux_tva: taux, montant_tva: tva, montant_ttc: ttc }
       } else {
         patch = { [field]: newValue }
       }

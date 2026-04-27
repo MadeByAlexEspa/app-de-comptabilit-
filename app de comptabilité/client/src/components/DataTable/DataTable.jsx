@@ -46,6 +46,8 @@ function InlineCell({ col, row, onSave }) {
     ? col.editable.options(row)
     : (col.editable.options ?? [])
 
+  const isGrouped = opts.length > 0 && opts[0].group !== undefined
+
   if (editing) {
     if (col.editable.type === 'select') {
       return (
@@ -57,9 +59,18 @@ function InlineCell({ col, row, onSave }) {
           onBlur={commit}
           onKeyDown={handleKeyDown}
         >
-          {opts.map(o => (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          ))}
+          {isGrouped
+            ? opts.map(g => (
+                <optgroup key={g.group} label={g.group}>
+                  {g.options.map(o => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </optgroup>
+              ))
+            : opts.map(o => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))
+          }
         </select>
       )
     }
