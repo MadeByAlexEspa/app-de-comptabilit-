@@ -203,8 +203,8 @@ function importTransaction(db, tx) {
   let taux, montantTva, montantHt;
   if (tx.vat_amount && tx.vat_amount > 0) {
     montantTva = round2(tx.vat_amount / 100);
-    taux       = tx.vat_rate != null ? parseFloat(tx.vat_rate) : round2((montantTva / montantTtc) * 100);
     montantHt  = round2(montantTtc - montantTva);
+    taux       = tx.vat_rate != null ? parseFloat(tx.vat_rate) : (montantHt > 0 ? round2((montantTva / montantHt) * 100) : 0);
   } else {
     taux       = 0;
     montantTva = 0;
