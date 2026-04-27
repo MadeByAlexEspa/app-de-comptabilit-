@@ -51,9 +51,12 @@ function InlineCombobox({ col, row, initialValue, onCommit, onCancel }) {
     inputRef.current?.focus({ preventScroll: true })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Close on scroll
+  // Close on scroll — but not when scrolling inside the dropdown itself
   useEffect(() => {
-    const fn = () => onCancel()
+    const fn = (e) => {
+      if (listRef.current?.contains(e.target)) return
+      onCancel()
+    }
     document.addEventListener('scroll', fn, { passive: true, capture: true })
     return () => document.removeEventListener('scroll', fn, { capture: true })
   }, [onCancel])
