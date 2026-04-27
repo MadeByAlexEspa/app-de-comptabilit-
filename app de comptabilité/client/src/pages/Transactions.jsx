@@ -546,18 +546,20 @@ export default function Transactions() {
     }
     try {
       let patch
-      if (field === 'montant_ttc') {
+      if (field === 'taux_tva') {
+        // TTC reste fixe — HT et TVA s'ajustent (même logique que page TVA)
+        const taux = Math.round(newValue * 100) / 100
+        const ttc  = row.montant_ttc ?? 0
+        const ht   = Math.round(ttc / (1 + taux / 100) * 100) / 100
+        const tva  = Math.round((ttc - ht) * 100) / 100
+        patch = { taux_tva: taux, montant_ht: ht, montant_tva: tva }
+      } else if (field === 'montant_ttc') {
+        // TTC change → recalcule HT et TVA
         const ttc  = Math.round(newValue * 100) / 100
         const taux = row.taux_tva ?? 0
         const ht   = Math.round(ttc / (1 + taux / 100) * 100) / 100
         const tva  = Math.round((ttc - ht) * 100) / 100
         patch = { montant_ttc: ttc, montant_ht: ht, montant_tva: tva }
-      } else if (field === 'taux_tva') {
-        const taux = Math.round(newValue * 100) / 100
-        const ht   = row.montant_ht ?? 0
-        const tva  = Math.round(ht * taux / 100 * 100) / 100
-        const ttc  = Math.round((ht + tva) * 100) / 100
-        patch = { taux_tva: taux, montant_tva: tva, montant_ttc: ttc }
       } else {
         patch = { [field]: newValue }
       }
