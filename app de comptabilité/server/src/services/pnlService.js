@@ -10,139 +10,139 @@ function round2(n) {
 
 const CAT_CA = new Set([
   // Old labels (kept for DB compatibility)
-  '706 – Prestations de services',
-  '701 – Ventes de produits finis',
-  '707 – Ventes de marchandises',
-  '708 – Produits des activités annexes',
+  "706 – Prestations de services",
+  "701 – Ventes de produits finis",
+  "707 – Ventes de marchandises",
+  "708 – Produits des activités annexes",
   // New SaaS labels
-  '706 – Abonnements SaaS (MRR / ARR)',
-  '706.1 – Licences logicielles',
-  '706.2 – Abonnements annuels prépayés',
-  '706.3 – Abonnements mensuels',
-  '708 – Consulting & prestations annexes',
-  '708.1 – Formation & onboarding clients',
-  '708.2 – Intégrations & développements sur mesure',
-  '708.3 – Support premium / SLA',
-  '708.4 – Revenus de marketplace / commissions',
+  "706 – Abonnements SaaS (MRR / ARR)",
+  "706.1 – Licences logicielles",
+  "706.2 – Abonnements annuels prépayés",
+  "706.3 – Abonnements mensuels",
+  "708 – Consulting & prestations annexes",
+  "708.1 – Formation & onboarding clients",
+  "708.2 – Intégrations & développements sur mesure",
+  "708.3 – Support premium / SLA",
+  "708.4 – Revenus de marketplace / commissions",
 ]);
 
 // 709 : rabais, remises, ristournes accordés (débit sur vente → réduit le CA)
-// Enregistrés en dépenses dans l'app ; soustraits du CA brut pour obtenir le CA net.
+// Enregistrés en dépenses dans l’app ; soustraits du CA brut pour obtenir le CA net.
 const CAT_AVOIRS_CLIENTS = new Set([
-  '709 – Avoirs & remboursements clients',
+  "709 – Avoirs & remboursements clients",
 ]);
 
 const CAT_AUTRES_PRODUITS_EXPL = new Set([
-  '74 – Subventions d’exploitation',
-  '75 – Autres produits de gestion courante',
-  // 409 : avoir fournisseur reçu — enregistré en entrée, réduit le coût d'achat net
-  '409 – Avoirs fournisseurs reçus',
+  "74 – Subventions d’exploitation",
+  "75 – Autres produits de gestion courante",
+  // 409 : avoir fournisseur reçu — enregistré en entrée, réduit le coût d’achat net
+  "409 – Avoirs fournisseurs reçus",
   // New
-  '741 – Aides BPI / innovation (CIR, CII)',
-  '742 – Subventions d’équipement',
+  "741 – Aides BPI / innovation (CIR, CII)",
+  "742 – Subventions d’équipement",
 ]);
 
 const CAT_PRODUITS_FINANCIERS = new Set([
-  '76 – Produits financiers',
+  "76 – Produits financiers",
 ]);
 
 const CAT_PRODUITS_EXCEPTIONNELS = new Set([
-  '77 – Produits exceptionnels',
+  "77 – Produits exceptionnels",
 ]);
 
 // CHARGES ──────────────────────────────────────────────────────────────────────
 
 const CAT_ACHATS = new Set([
   // Old labels
-  '604 – Achats de prestations de services',
-  '606 – Fournitures et petits équipements',
-  '607 – Achats de marchandises',
+  "604 – Achats de prestations de services",
+  "606 – Fournitures et petits équipements",
+  "607 – Achats de marchandises",
   // New labels
-  '604 – Achats de prestations de développement',
-  '606 – Fournitures & petits équipements',
+  "604 – Achats de prestations de développement",
+  "606 – Fournitures & petits équipements",
 ]);
 
 const CAT_CHARGES_EXTERNES = new Set([
   // Old labels
-  '611 – Sous-traitance générale',
-  '613 – Locations & charges locatives',
-  '615 – Entretien et réparations',
-  '616 – Primes d’assurance',
-  '618 – Abonnements & frais informatiques',
-  '622 – Honoraires et rémunérations d’intermédiaires',
-  '623 – Publicité & communication',
-  '624 – Transports de biens',
-  '625 – Déplacements, missions & réceptions',
-  '626 – Frais postaux & télécommunications',
-  '627 – Services bancaires & assimilés',
+  "611 – Sous-traitance générale",
+  "613 – Locations & charges locatives",
+  "615 – Entretien et réparations",
+  "616 – Primes d’assurance",
+  "618 – Abonnements & frais informatiques",
+  "622 – Honoraires et rémunérations d’intermédiaires",
+  "623 – Publicité & communication",
+  "624 – Transports de biens",
+  "625 – Déplacements, missions & réceptions",
+  "626 – Frais postaux & télécommunications",
+  "627 – Services bancaires & assimilés",
   // New SaaS labels
-  '611 – Sous-traitance technique (freelances, agences)',
-  '6135 – Coworking & espaces de travail partagés',
-  '615 – Entretien & réparations',
-  '616 – Primes d’assurance (RC pro, cyber…)',
-  '618 – Autres abonnements & frais informatiques',
-  '618.1 – Hébergement cloud (AWS, GCP, Azure)',
-  '618.2 – Base de données & stockage cloud',
-  '618.3 – CDN, DNS & sécurité réseau',
-  '618.4 – Monitoring & observabilité (Datadog, Sentry…)',
-  '618.5 – CRM (Salesforce, HubSpot…)',
-  '618.6 – Support client (Intercom, Zendesk…)',
-  '618.7 – Productivité & collaboration (Notion, Slack…)',
-  '618.8 – Analytics & BI (Mixpanel, Amplitude…)',
-  '618.9 – Paiement & facturation (Stripe, Paddle…)',
-  '618.10 – Emailing & marketing automation',
-  '618.11 – Sécurité & conformité (auth, SSO, DLP)',
-  '622 – Autres honoraires & rémunérations intermédiaires',
-  '622.1 – Honoraires comptables & juridiques',
-  '622.2 – Conseil & consulting stratégique',
-  '623 – Autres dépenses publicité & communication',
-  '623.1 – Publicité digitale (Google Ads, Meta, LinkedIn…)',
-  '623.2 – SEO & content marketing',
-  '623.3 – Partenariats & affiliation',
-  '623.4 – Événements, salons & conférences',
-  '623.5 – Création de contenu & design',
-  '627 – Services bancaires & commissions',
+  "611 – Sous-traitance technique (freelances, agences)",
+  "6135 – Coworking & espaces de travail partagés",
+  "615 – Entretien & réparations",
+  "616 – Primes d’assurance (RC pro, cyber…)",
+  "618 – Autres abonnements & frais informatiques",
+  "618.1 – Hébergement cloud (AWS, GCP, Azure)",
+  "618.2 – Base de données & stockage cloud",
+  "618.3 – CDN, DNS & sécurité réseau",
+  "618.4 – Monitoring & observabilité (Datadog, Sentry…)",
+  "618.5 – CRM (Salesforce, HubSpot…)",
+  "618.6 – Support client (Intercom, Zendesk…)",
+  "618.7 – Productivité & collaboration (Notion, Slack…)",
+  "618.8 – Analytics & BI (Mixpanel, Amplitude…)",
+  "618.9 – Paiement & facturation (Stripe, Paddle…)",
+  "618.10 – Emailing & marketing automation",
+  "618.11 – Sécurité & conformité (auth, SSO, DLP)",
+  "622 – Autres honoraires & rémunérations intermédiaires",
+  "622.1 – Honoraires comptables & juridiques",
+  "622.2 – Conseil & consulting stratégique",
+  "623 – Autres dépenses publicité & communication",
+  "623.1 – Publicité digitale (Google Ads, Meta, LinkedIn…)",
+  "623.2 – SEO & content marketing",
+  "623.3 – Partenariats & affiliation",
+  "623.4 – Événements, salons & conférences",
+  "623.5 – Création de contenu & design",
+  "627 – Services bancaires & commissions",
 ]);
 
 const CAT_IMPOTS_TAXES = new Set([
   // Old labels
-  '631 – Impôts, taxes et versements assimilés sur rémunérations',
-  '635 – Autres impôts, taxes et versements assimilés',
+  "631 – Impôts, taxes et versements assimilés sur rémunérations",
+  "635 – Autres impôts, taxes et versements assimilés",
   // New labels
-  '631 – Impôts & taxes sur rémunérations',
-  '635 – Autres impôts, taxes & versements assimilés',
+  "631 – Impôts & taxes sur rémunérations",
+  "635 – Autres impôts, taxes & versements assimilés",
 ]);
 
 const CAT_CHARGES_PERSONNEL = new Set([
   // Old labels
-  '641 – Rémunérations du personnel',
-  '645 – Charges sociales & cotisations',
+  "641 – Rémunérations du personnel",
+  "645 – Charges sociales & cotisations",
   // 421 : remboursement de notes de frais (charge de personnel nette de TVA)
-  '421 – Notes de frais du personnel',
+  "421 – Notes de frais du personnel",
   // New labels
-  '645 – Charges sociales & cotisations patronales',
-  '648 – Mutuelle, tickets-restaurant & avantages',
+  "645 – Charges sociales & cotisations patronales",
+  "648 – Mutuelle, tickets-restaurant & avantages",
 ]);
 
 const CAT_DOTATIONS = new Set([
-  '681 – Dotations aux amortissements d’exploitation',
+  "681 – Dotations aux amortissements d’exploitation",
 ]);
 
 const CAT_CHARGES_FINANCIERES = new Set([
-  '661 – Charges d’intérêts',
-  '668 – Autres charges financières',
+  "661 – Charges d’intérêts",
+  "668 – Autres charges financières",
 ]);
 
 const CAT_CHARGES_EXCEPTIONNELLES = new Set([
   // Old label
-  '671 – Charges exceptionnelles sur opérations de gestion',
-  '675 – Valeurs comptables des éléments cédés',
+  "671 – Charges exceptionnelles sur opérations de gestion",
+  "675 – Valeurs comptables des éléments cédés",
   // New label
-  '671 – Charges exceptionnelles',
+  "671 – Charges exceptionnelles",
 ]);
 
 const CAT_IS = new Set([
-  '695 – Impôt sur les bénéfices (IS)',
+  "695 – Impôt sur les bénéfices (IS)",
 ]);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
