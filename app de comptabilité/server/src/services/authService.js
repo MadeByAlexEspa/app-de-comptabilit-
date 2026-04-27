@@ -114,9 +114,12 @@ async function forgotPassword({ email }) {
     [email, tokenHash, expiresAt]
   );
 
-  const appUrl  = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const appUrl   = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
   const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
-  await sendPasswordResetEmail(email, resetUrl);
+  // Fire-and-forget — ne bloque pas la réponse HTTP
+  sendPasswordResetEmail(email, resetUrl).catch(err =>
+    console.error('[email] Background send failed:', err.message)
+  );
 }
 
 async function resetPassword({ token, password }) {
