@@ -342,8 +342,27 @@ function Pagination({ page, totalPages, onChange }) {
   )
 }
 
+const FILTERS_KEY = 'transactions_filters'
+
+function loadFilters() {
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveFilters(patch) {
+  try {
+    const current = loadFilters()
+    localStorage.setItem(FILTERS_KEY, JSON.stringify({ ...current, ...patch }))
+  } catch {}
+}
+
 export default function Transactions() {
-  const [activeTab, setActiveTab]     = useState('tous')
+  const _f = loadFilters()
+  const [activeTab, setActiveTab]     = useState(_f.activeTab || 'tous')
   const [page, setPage]               = useState(1)
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [modalOpen, setModalOpen]     = useState(false)
@@ -356,11 +375,16 @@ export default function Transactions() {
   // pendingCatChange: { row, newCategory, matchingRows, isEntree }
 
   // ── Filters ────────────────────────────────────────────────────────────────
-  const [filterTiers,     setFilterTiers]     = useState('')
-  const [filterDateFrom,  setFilterDateFrom]  = useState('')
-  const [filterDateTo,    setFilterDateTo]    = useState('')
-  const [filterCategorie, setFilterCategorie] = useState('')
-  const [filterStatut,    setFilterStatut]    = useState('')
+  const [filterTiers,     setFilterTiers]     = useState(_f.filterTiers     || '')
+  const [filterDateFrom,  setFilterDateFrom]  = useState(_f.filterDateFrom  || '')
+  const [filterDateTo,    setFilterDateTo]    = useState(_f.filterDateTo    || '')
+  const [filterCategorie, setFilterCategorie] = useState(_f.filterCategorie || '')
+  const [filterStatut,    setFilterStatut]    = useState(_f.filterStatut    || '')
+
+  // Persist filters to localStorage whenever they change
+  useEffect(() => {
+    saveFilters({ activeTab, filterTiers, filterDateFrom, filterDateTo, filterCategorie, filterStatut })
+  }, [activeTab, filterTiers, filterDateFrom, filterDateTo, filterCategorie, filterStatut])
 
   const {
     factures, loading: loadingF, error: errorF,
@@ -385,6 +409,7 @@ export default function Transactions() {
     setFilterDateTo('')
     setFilterCategorie('')
     setFilterStatut('')
+    saveFilters({ activeTab: tab, filterTiers: '', filterDateFrom: '', filterDateTo: '', filterCategorie: '', filterStatut: '' })
   }
 
   function clearFilters() {
