@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Trash2, Paperclip } from 'lucide-react'
 import { buildCategoriePatch } from '../lib/tvaRules.js'
 import { useFactures } from '../hooks/useFactures.js'
@@ -349,6 +349,135 @@ function Pagination({ page, totalPages, onChange }) {
   )
 }
 
+// ── TVA Split Panel ───────────────────────────────────────────────────────────
+
+const TVA_SPLIT_OPTIONS = [
+  { value: '20',  label: '20 %' },
+  { value: '10',  label: '10 %' },
+  { value: '5.5', label: '5,5 %' },
+  { value: '2.1', label: '2,1 %' },
+  { value: '0',   label: '0 %' },
+]
+
+function round2(n) { return Math.round(n * 100) / 100 }
+
+function TvaSplitPanel({ row, onSave, onClose }) {
+  const ttcRef = row.montant_ttc
+
+  const [lines, setLines] = useState(() => {
+    if (row.taux_tva === -1 && row.tva_lines) {
+      try {
+        return JSON.parse(row.tva_lines).map(l => ({
+          taux_tva: String(l.taux_tva),
+          montant_ht: String(l.montant_ht),
+        }))
+      } catch {}
+    }
+    const defaultTaux = row.taux_tva >= 0 ? String(row.taux_tva) : '20'
+    return [{ taux_tva: defaultTaux, montant_ht: '' }]
+  })
+  const [saving, setSaving] = useState(false)
+  const [error,  setError]  = useState(null)
+
+  const computedLines = lines.map(l => {
+    const ht   = round2(parseFloat(l.montant_ht) || 0)
+    const taux = parseFloat(l.taux_tva) || 0
+    const tva  = round2(ht * taux / 100)
+    return { ...l, _ht: ht, _taux: taux, _tva: tva, _ttc: round2(ht + tva) }
+  })
+
+  const totalTtc = round2(computedLines.reduce((s, l) => s + l._ttc, 0))
+  const diff     = round2(totalTtc - ttcRef)
+  const valid    = lines.length >= 1
+    && computedLines.every(l => l._ht > 0)
+    && Math.abs(diff) < 0.02
+
+  function addLine()       { setLines(l => [...l, { taux_tva: '20', montant_ht: '' }]) }
+  function removeLine(i)   { setLines(l => l.filter((_, j) => j !== i)) }
+  function updateLine(i, k, v) { setLines(l => l.map((x, j) => j === i ? { ...x, [k]: v } : x)) }
+
+  async function handleSave() {
+    setSaving(true); setError(null)
+    try {
+      await onSave(row, computedLines.map(l => ({
+        taux_tva: l._taux, montant_ht: l._ht, montant_tva: l._tva,
+      })))
+      onClose()
+    } catch (e) {
+      setError(e.message)
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal title="Ventiler la TVA" onClose={onClose} size="medium">
+      <div className={styles.splitPanel}>
+        <div className={styles.splitRef}>
+          TTC de référence : <strong>{formatEur(ttcRef)}</strong>
+        </div>
+
+        <div className={styles.splitLines}>
+          {computedLines.map((line, i) => (
+            <div key={i} className={styles.splitLine}>
+              <div className={styles.splitField}>
+                <label className={styles.splitLabel}>Montant HT</label>
+                <input
+                  type="number" step="0.01" min="0"
+                  className={styles.splitInput}
+                  value={line.montant_ht}
+                  onChange={e => updateLine(i, 'montant_ht', e.target.value)}
+                  placeholder="0.00"
+                  autoFocus={i === 0}
+                />
+              </div>
+              <div className={styles.splitField}>
+                <label className={styles.splitLabel}>Taux TVA</label>
+                <select
+                  className={styles.splitSelect}
+                  value={line.taux_tva}
+                  onChange={e => updateLine(i, 'taux_tva', e.target.value)}
+                >
+                  {TVA_SPLIT_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </select>
+              </div>
+              <div className={styles.splitComputed}>
+                <span>TVA : {formatEur(line._tva)}</span>
+                <span>TTC : <strong>{formatEur(line._ttc)}</strong></span>
+              </div>
+              {lines.length > 1 && (
+                <button className={styles.splitRemove} onClick={() => removeLine(i)} type="button" title="Supprimer cette ligne">×</button>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <button className={styles.splitAddLine} onClick={addLine} type="button">+ Ajouter une ligne TVA</button>
+
+        <div className={`${styles.splitTotal} ${Math.abs(diff) >= 0.02 ? styles.splitTotalErr : styles.splitTotalOk}`}>
+          <span>Total lignes TTC : <strong>{formatEur(totalTtc)}</strong></span>
+          {Math.abs(diff) >= 0.02 && (
+            <span className={styles.splitDiff}>Écart {diff > 0 ? '+' : ''}{formatEur(diff)} — ajustez les montants HT</span>
+          )}
+          {Math.abs(diff) < 0.02 && totalTtc > 0 && (
+            <span className={styles.splitOk}>✓ Correspond au TTC</span>
+          )}
+        </div>
+
+        {error && <div className={styles.splitError}>{error}</div>}
+
+        <div className={styles.confirmActions}>
+          <button className={styles.btnCancel} onClick={onClose} type="button">Annuler</button>
+          <button className={styles.btnPrimary} onClick={handleSave} disabled={!valid || saving} type="button">
+            {saving ? 'Enregistrement…' : 'Enregistrer la ventilation'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Filters ───────────────────────────────────────────────────────────────────
+
 const FILTERS_KEY = 'transactions_filters'
 
 function loadFilters() {
@@ -379,6 +508,7 @@ export default function Transactions() {
   const [bulkDeleting, setBulkDeleting]           = useState(false)
   const [actionError, setActionError]             = useState(null)
   const [pendingCatChange, setPendingCatChange]   = useState(null)
+  const [splitTarget, setSplitTarget]             = useState(null)
   // pendingCatChange: { row, newCategory, matchingRows, isEntree }
 
   // ── Filters ────────────────────────────────────────────────────────────────
@@ -442,11 +572,37 @@ export default function Transactions() {
   const isSorties = activeTab === 'sorties'
   const isTous    = activeTab === 'tous'
 
+  const openSplit = useCallback(row => setSplitTarget(row), [])
+
   const loading = (loadingF || loadingD)
   const error   = isTous ? (errorF || errorD) : isEntrees ? errorF : errorD
 
   const fullData = isTous ? allRows : isEntrees ? factures : depenses
-  const columns  = isTous ? COLUMNS_TOUS : isEntrees ? COLUMNS_ENTREES : COLUMNS_SORTIES
+  const tvaCell = useMemo(() => ({
+    key: 'taux_tva',
+    label: 'Taux de TVA',
+    render: (v, row) => (
+      <span className={styles.tvaCell}>
+        {v === -1
+          ? <span className={styles.badgeMulti}>Multi</span>
+          : (v != null ? `${v} %` : '—')
+        }
+        <button
+          className={styles.splitBtn}
+          type="button"
+          title="Ventiler la TVA sur plusieurs taux"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); openSplit(row) }}
+        >⊞</button>
+      </span>
+    ),
+    editable: { type: 'pills', options: TVA_RATE_OPTIONS },
+  }), [openSplit])
+
+  const columns = useMemo(() => {
+    const base = isTous ? COLUMNS_TOUS : isEntrees ? COLUMNS_ENTREES : COLUMNS_SORTIES
+    return base.map(col => col.key === 'taux_tva' ? tvaCell : col)
+  }, [isTous, isEntrees, tvaCell])
 
   const hasFilters = !!(filterTiers || filterDateFrom || filterDateTo || filterCategorie || filterStatut)
 
@@ -557,6 +713,13 @@ export default function Transactions() {
         setPendingCatChange({ row: editTarget, newCategory, patch, matchingRows: matches, isEntree: editIsEntree })
       }
     }
+  }
+
+  async function handleSplitSave(row, tvaLines) {
+    const isEntree = row._type ? row._type === 'entree' : isEntrees
+    if (isEntree) await updateFacture(row.id, { tva_lines: tvaLines })
+    else          await updateDepense(row.id, { tva_lines: tvaLines })
+    await (isEntree ? fetchFactures() : fetchDepenses())
   }
 
   async function handleCellSave(row, field, newValue) {
@@ -896,6 +1059,14 @@ export default function Transactions() {
           </Modal>
         )
       })()}
+
+      {splitTarget && (
+        <TvaSplitPanel
+          row={splitTarget}
+          onSave={handleSplitSave}
+          onClose={() => setSplitTarget(null)}
+        />
+      )}
 
       {confirmBulkDelete && (
         <Modal
