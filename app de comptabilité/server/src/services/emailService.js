@@ -15,6 +15,8 @@ const nodemailer = require('nodemailer');
 
 const SMTP_CONFIGURED = !!(process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS);
 
+console.log(`[email] SMTP configured: ${SMTP_CONFIGURED} | host=${process.env.SMTP_HOST || 'N/A'} | user=${process.env.SMTP_USER || 'N/A'}`);
+
 let _transporter = null;
 
 function getTransporter() {
@@ -54,17 +56,25 @@ async function sendPasswordResetEmail(email, resetUrl) {
     </div>
   `;
 
-  // Always log for debugging (visible in server console)
-  console.log(`[email] Reset link for ${email}: ${resetUrl}`);
+  console.log(`[email] Sending reset link to ${email}: ${resetUrl}`);
 
-  if (!SMTP_CONFIGURED) return; // dev mode: link logged, no email sent
+  if (!SMTP_CONFIGURED) {
+    console.log('[email] SMTP not configured — email skipped (set SMTP_HOST, SMTP_USER, SMTP_PASS)');
+    return;
+  }
 
-  await getTransporter().sendMail({
-    from,
-    to: email,
-    subject: 'Réinitialisation de votre mot de passe Compte-Pote',
-    html,
-  });
+  try {
+    const info = await getTransporter().sendMail({
+      from,
+      to: email,
+      subject: 'Réinitialisation de votre mot de passe Compte-Pote',
+      html,
+    });
+    console.log(`[email] Sent OK — messageId: ${info.messageId}`);
+  } catch (err) {
+    console.error(`[email] Send FAILED — ${err.message}`, err);
+    throw err;
+  }
 }
 
 module.exports = { sendPasswordResetEmail };
