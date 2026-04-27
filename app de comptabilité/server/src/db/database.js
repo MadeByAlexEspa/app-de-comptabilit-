@@ -270,6 +270,8 @@ function applySchema(rawDb) {
   try { rawDb.run('ALTER TABLE qonto_sync_log ADD COLUMN account_id INTEGER'); } catch (_) {}
   try { rawDb.run('ALTER TABLE qonto_imports ADD COLUMN has_attachment INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
   try { rawDb.run('ALTER TABLE shine_imports ADD COLUMN has_attachment INTEGER NOT NULL DEFAULT 0'); } catch (_) {}
+  try { rawDb.run('ALTER TABLE factures ADD COLUMN tva_lines TEXT'); } catch (_) {}
+  try { rawDb.run('ALTER TABLE depenses ADD COLUMN tva_lines TEXT'); } catch (_) {}
 }
 
 // Apply schema to the main compta.db

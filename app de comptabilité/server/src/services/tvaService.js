@@ -13,10 +13,36 @@ function ventilerParTaux(rows) {
   }
 
   for (const row of rows) {
-    const t = row.taux_tva;
-    if (!(t in par_taux)) par_taux[t] = { base_ht: 0, tva: 0 };
-    par_taux[t].base_ht = round2(par_taux[t].base_ht + row.montant_ht);
-    par_taux[t].tva     = round2(par_taux[t].tva     + row.montant_tva);
+    if (row.tva_lines) {
+      // Multi-TVA mode: parse tva_lines and iterate each line
+      let lines;
+      try {
+        lines = JSON.parse(row.tva_lines);
+      } catch (_) {
+        lines = null;
+      }
+
+      if (Array.isArray(lines) && lines.length > 0) {
+        for (const line of lines) {
+          const t = line.taux_tva;
+          if (!(t in par_taux)) par_taux[t] = { base_ht: 0, tva: 0 };
+          par_taux[t].base_ht = round2(par_taux[t].base_ht + line.montant_ht);
+          par_taux[t].tva     = round2(par_taux[t].tva     + line.montant_tva);
+        }
+      } else {
+        // Fallback to single-rate logic if tva_lines is invalid
+        const t = row.taux_tva;
+        if (!(t in par_taux)) par_taux[t] = { base_ht: 0, tva: 0 };
+        par_taux[t].base_ht = round2(par_taux[t].base_ht + row.montant_ht);
+        par_taux[t].tva     = round2(par_taux[t].tva     + row.montant_tva);
+      }
+    } else {
+      // Single-TVA mode: use existing logic
+      const t = row.taux_tva;
+      if (!(t in par_taux)) par_taux[t] = { base_ht: 0, tva: 0 };
+      par_taux[t].base_ht = round2(par_taux[t].base_ht + row.montant_ht);
+      par_taux[t].tva     = round2(par_taux[t].tva     + row.montant_tva);
+    }
   }
 
   const result = {};

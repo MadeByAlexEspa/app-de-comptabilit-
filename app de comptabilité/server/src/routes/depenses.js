@@ -1,6 +1,6 @@
 const { Router } = require('express');
 const { getWorkspaceDb } = require('../db/database');
-const { validateTaux, validateStatut, computeAmounts } = require('../utils/entryUtils');
+const { validateTaux, validateStatut, computeAmounts, computeAmountsFromLines } = require('../utils/entryUtils');
 const { encryptRow, decryptRow, decryptRows, DEPENSE_FIELDS } = require('../services/cryptoService');
 
 const router = Router();
@@ -12,33 +12,71 @@ function parseBody(body, requireAll = true) {
     description = '',
     montant_ht,
     taux_tva,
+    tva_lines,
     categorie,
     statut = 'en_attente',
   } = body;
 
-  if (requireAll) {
-    const missing = [];
-    if (!date)                     missing.push('date');
-    if (!fournisseur)              missing.push('fournisseur');
-    if (montant_ht === undefined)  missing.push('montant_ht');
-    if (taux_tva === undefined)    missing.push('taux_tva');
-    if (!categorie)                missing.push('categorie');
-
-    if (missing.length) {
-      const err = new Error(`Champs obligatoires manquants : ${missing.join(', ')}`);
-      err.status = 400;
-      throw err;
+  // Resolve tva_lines
+  let resolvedLines = null;
+  if (Array.isArray(tva_lines)) {
+    resolvedLines = tva_lines;
+  } else if (typeof tva_lines === 'string') {
+    try {
+      const parsed = JSON.parse(tva_lines);
+      if (Array.isArray(parsed)) {
+        resolvedLines = parsed;
+      }
+    } catch (_) {
+      // Invalid JSON, leave resolvedLines as null
     }
   }
 
-  validateTaux(taux_tva);
+  let amounts;
+  if (resolvedLines && resolvedLines.length > 0) {
+    // Multi-TVA mode: use computeAmountsFromLines, skip validateTaux and required field checks for montant_ht/taux_tva
+    amounts = computeAmountsFromLines(resolvedLines);
+
+    if (requireAll) {
+      const missing = [];
+      if (!date)         missing.push('date');
+      if (!fournisseur)  missing.push('fournisseur');
+      if (!categorie)    missing.push('categorie');
+
+      if (missing.length) {
+        const err = new Error(`Champs obligatoires manquants : ${missing.join(', ')}`);
+        err.status = 400;
+        throw err;
+      }
+    }
+  } else {
+    // Single-TVA mode: use existing logic
+    if (requireAll) {
+      const missing = [];
+      if (!date)                     missing.push('date');
+      if (!fournisseur)              missing.push('fournisseur');
+      if (montant_ht === undefined)  missing.push('montant_ht');
+      if (taux_tva === undefined)    missing.push('taux_tva');
+      if (!categorie)                missing.push('categorie');
+
+      if (missing.length) {
+        const err = new Error(`Champs obligatoires manquants : ${missing.join(', ')}`);
+        err.status = 400;
+        throw err;
+      }
+    }
+
+    validateTaux(taux_tva);
+    amounts = { ...computeAmounts(montant_ht, taux_tva), tva_lines: null };
+  }
+
   validateStatut(statut);
 
   return {
     date,
     fournisseur,
     description,
-    ...computeAmounts(montant_ht, taux_tva),
+    ...amounts,
     categorie,
     statut,
   };
@@ -94,8 +132,8 @@ router.post('/', (req, res, next) => {
     const encrypted = encryptRow(data, DEPENSE_FIELDS, req.user.workspaceId);
 
     const result = db.prepare(`
-      INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut)
-      VALUES (@date, @fournisseur, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut)
+      INSERT INTO depenses (date, fournisseur, description, montant_ht, taux_tva, montant_tva, montant_ttc, categorie, statut, tva_lines)
+      VALUES (@date, @fournisseur, @description, @montant_ht, @taux_tva, @montant_tva, @montant_ttc, @categorie, @statut, @tva_lines)
     `).run(encrypted);
 
     const created = db.prepare('SELECT * FROM depenses WHERE id = ?').get(result.lastInsertRowid);
@@ -126,7 +164,8 @@ router.put('/:id', (req, res, next) => {
           montant_tva = @montant_tva,
           montant_ttc = @montant_ttc,
           categorie = @categorie,
-          statut = @statut
+          statut = @statut,
+          tva_lines = @tva_lines
       WHERE id = @id
     `).run({ ...encrypted, id: req.params.id });
 

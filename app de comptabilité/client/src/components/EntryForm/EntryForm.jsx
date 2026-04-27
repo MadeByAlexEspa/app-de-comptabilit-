@@ -190,9 +190,34 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
   const [form, setForm]         = useState(() => ({ ...defaultValues(type), ...initialData }))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]       = useState(null)
+  const [multiTva, setMultiTva] = useState(false)
+  const [tvaLines, setTvaLines] = useState([{ taux_tva: 20, montant_ht: '' }])
 
   useEffect(() => {
-    setForm({ ...defaultValues(type), ...initialData })
+    const newForm = { ...defaultValues(type), ...initialData }
+    setForm(newForm)
+
+    // Check if initialData has multi-TVA
+    if (initialData?.taux_tva === -1 && initialData?.tva_lines) {
+      setMultiTva(true)
+      let lines
+      try {
+        lines = typeof initialData.tva_lines === 'string'
+          ? JSON.parse(initialData.tva_lines)
+          : initialData.tva_lines
+      } catch (_) {
+        lines = null
+      }
+      if (Array.isArray(lines) && lines.length > 0) {
+        setTvaLines(lines.map(line => ({
+          taux_tva: line.taux_tva,
+          montant_ht: String(line.montant_ht || '')
+        })))
+      }
+    } else {
+      setMultiTva(false)
+      setTvaLines([{ taux_tva: 20, montant_ht: '' }])
+    }
   }, [type, initialData])
 
   const tvaRegime  = getTvaRegime(form.categorie)
@@ -200,6 +225,19 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
   const tauxTva    = parseFloat(form.taux_tva) || 0
   const montantTva = +(montantHt * tauxTva / 100).toFixed(2)
   const montantTtc = +(montantHt + montantTva).toFixed(2)
+
+  // Multi-TVA totals
+  const multiTotalHt = multiTva
+    ? tvaLines.reduce((sum, line) => sum + (parseFloat(line.montant_ht) || 0), 0)
+    : 0
+  const multiTotalTva = multiTva
+    ? tvaLines.reduce((sum, line) => {
+        const ht = parseFloat(line.montant_ht) || 0
+        const taux = parseFloat(line.taux_tva) || 0
+        return sum + (ht * taux / 100)
+      }, 0)
+    : 0
+  const multiTotalTtc = multiTotalHt + multiTotalTva
 
   function handleChange(e) {
     const { name, value } = e.target
@@ -211,16 +249,58 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
     }
   }
 
+  function handleToggleMultiTva() {
+    setMultiTva(prev => {
+      if (!prev && form.montant_ht) {
+        // Switching to multi: initialize with current single values
+        setTvaLines([{ taux_tva: form.taux_tva, montant_ht: form.montant_ht }])
+      }
+      return !prev
+    })
+  }
+
+  function handleLineChange(index, field, value) {
+    setTvaLines(prev => prev.map((line, i) =>
+      i === index ? { ...line, [field]: value } : line
+    ))
+  }
+
+  function handleAddLine() {
+    setTvaLines(prev => [...prev, { taux_tva: 20, montant_ht: '' }])
+  }
+
+  function handleRemoveLine(index) {
+    if (tvaLines.length > 1) {
+      setTvaLines(prev => prev.filter((_, i) => i !== index))
+    }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setError(null)
     setSubmitting(true)
     try {
-      await onSubmit({
-        ...form,
-        montant_ht: parseFloat(form.montant_ht),
-        taux_tva:   parseFloat(form.taux_tva),
-      })
+      if (multiTva) {
+        // Multi-TVA mode: send tva_lines array, no single montant_ht/taux_tva
+        const parsedLines = tvaLines.map(line => ({
+          taux_tva: parseFloat(line.taux_tva),
+          montant_ht: parseFloat(line.montant_ht)
+        }))
+        if (parsedLines.some(l => isNaN(l.montant_ht) || l.montant_ht <= 0)) {
+          throw new Error('Chaque ligne TVA doit avoir un montant HT valide et positif.')
+        }
+        await onSubmit({
+          ...form,
+          tva_lines: parsedLines
+        })
+      } else {
+        // Single TVA mode: send as before
+        await onSubmit({
+          ...form,
+          montant_ht: parseFloat(form.montant_ht),
+          taux_tva:   parseFloat(form.taux_tva),
+        })
+      }
     } catch (err) {
       setError(err.message)
       setSubmitting(false)
@@ -303,48 +383,125 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
         </select>
       </div>
 
-      <div className={styles.row}>
+      {/* Multi-TVA toggle button - hidden when TVA is locked */}
+      {!tvaRegime.locked && (
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="montant_ht">Montant HT (€)</label>
-          <input
-            id="montant_ht" name="montant_ht" type="number"
-            min="0" step="0.01"
-            className={styles.input}
-            value={form.montant_ht} onChange={handleChange}
-            placeholder="0.00" required
-          />
-        </div>
-        <div className={styles.field}>
-          <label className={styles.label} htmlFor="taux_tva">Taux TVA</label>
-          <select
-            id="taux_tva" name="taux_tva"
-            className={styles.select}
-            value={form.taux_tva}
-            onChange={handleChange}
-            disabled={tvaRegime.locked}
-            title={tvaRegime.locked ? 'Cette catégorie est hors champ ou exonérée de TVA (CGI art. 261)' : undefined}
+          <button
+            type="button"
+            className={`${styles.toggleMultiTva} ${multiTva ? styles.toggleMultiTvaActive : ''}`}
+            onClick={handleToggleMultiTva}
           >
-            {TAUX_TVA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
-          </select>
-          {tvaRegime.locked && (
-            <span className={styles.tvaNote}>
-              Hors champ / exonéré de TVA — taux forcé à 0 %
-            </span>
-          )}
+            {multiTva ? 'Revenir au taux unique' : 'Activer TVA multiple'}
+          </button>
         </div>
-      </div>
+      )}
 
-      <div className={styles.preview}>
-        <span className={styles.previewItem}>
-          <span className={styles.previewLabel}>TVA :</span>
-          <span className={styles.previewValue}>{formatEur(montantTva)}</span>
-        </span>
-        <span className={styles.previewSep}>—</span>
-        <span className={styles.previewItem}>
-          <span className={styles.previewLabel}>TTC :</span>
-          <span className={styles.previewValueBold}>{formatEur(montantTtc)}</span>
-        </span>
-      </div>
+      {multiTva ? (
+        // Multi-TVA interface
+        <div className={styles.tvaLinesSection}>
+          {tvaLines.map((line, index) => (
+            <div key={index} className={styles.tvaLineRow}>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                className={styles.input}
+                value={line.montant_ht}
+                onChange={e => handleLineChange(index, 'montant_ht', e.target.value)}
+                placeholder="Montant HT"
+              />
+              <select
+                className={styles.select}
+                value={line.taux_tva}
+                onChange={e => handleLineChange(index, 'taux_tva', e.target.value)}
+              >
+                {TAUX_TVA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              <span className={styles.tvaLineComputed}>
+                {formatEur((parseFloat(line.montant_ht) || 0) * (parseFloat(line.taux_tva) || 0) / 100)}
+              </span>
+              {tvaLines.length > 1 && (
+                <button
+                  type="button"
+                  className={styles.btnDeleteLine}
+                  onClick={() => handleRemoveLine(index)}
+                >
+                  ×
+                </button>
+              )}
+            </div>
+          ))}
+          <button
+            type="button"
+            className={styles.btnAddLine}
+            onClick={handleAddLine}
+          >
+            Ajouter une ligne TVA
+          </button>
+          <div className={styles.multiTvaSummary}>
+            <span className={styles.previewItem}>
+              <span className={styles.previewLabel}>Total HT :</span>
+              <span className={styles.previewValue}>{formatEur(multiTotalHt)}</span>
+            </span>
+            <span className={styles.previewSep}>—</span>
+            <span className={styles.previewItem}>
+              <span className={styles.previewLabel}>Total TVA :</span>
+              <span className={styles.previewValue}>{formatEur(multiTotalTva)}</span>
+            </span>
+            <span className={styles.previewSep}>—</span>
+            <span className={styles.previewItem}>
+              <span className={styles.previewLabel}>Total TTC :</span>
+              <span className={styles.previewValueBold}>{formatEur(multiTotalTtc)}</span>
+            </span>
+          </div>
+        </div>
+      ) : (
+        // Single TVA interface
+        <>
+          <div className={styles.row}>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="montant_ht">Montant HT (€)</label>
+              <input
+                id="montant_ht" name="montant_ht" type="number"
+                min="0" step="0.01"
+                className={styles.input}
+                value={form.montant_ht} onChange={handleChange}
+                placeholder="0.00" required
+              />
+            </div>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="taux_tva">Taux TVA</label>
+              <select
+                id="taux_tva" name="taux_tva"
+                className={styles.select}
+                value={form.taux_tva}
+                onChange={handleChange}
+                disabled={tvaRegime.locked}
+                title={tvaRegime.locked ? 'Cette catégorie est hors champ ou exonérée de TVA (CGI art. 261)' : undefined}
+              >
+                {TAUX_TVA.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+              </select>
+              {tvaRegime.locked && (
+                <span className={styles.tvaNote}>
+                  Hors champ / exonéré de TVA — taux forcé à 0 %
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className={styles.preview}>
+            <span className={styles.previewItem}>
+              <span className={styles.previewLabel}>TVA :</span>
+              <span className={styles.previewValue}>{formatEur(montantTva)}</span>
+            </span>
+            <span className={styles.previewSep}>—</span>
+            <span className={styles.previewItem}>
+              <span className={styles.previewLabel}>TTC :</span>
+              <span className={styles.previewValueBold}>{formatEur(montantTtc)}</span>
+            </span>
+          </div>
+        </>
+      )}
 
       {error && <div className={styles.error}>{error}</div>}
 

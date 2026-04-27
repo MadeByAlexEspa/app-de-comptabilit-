@@ -240,7 +240,7 @@ const COLUMNS_TOUS = [
   { key: '_tiers',         label: 'Tiers',       render: (_, row) => row.client || row.fournisseur || '—',
     sortable: false },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
+  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v === -1 ? <span className={styles.badgeMulti}>Multi</span> : (v != null ? v + ' %' : '—'),
     editable: { type: 'pills', options: TVA_RATE_OPTIONS } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
@@ -257,7 +257,7 @@ const COLUMNS_ENTREES = [
   { key: 'client',         label: 'Client',
     editable: { type: 'text' } },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
+  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v === -1 ? <span className={styles.badgeMulti}>Multi</span> : (v != null ? v + ' %' : '—'),
     editable: { type: 'pills', options: TVA_RATE_OPTIONS } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
@@ -274,7 +274,7 @@ const COLUMNS_SORTIES = [
   { key: 'fournisseur',    label: 'Fournisseur',
     editable: { type: 'text' } },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
-  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
+  { key: 'taux_tva',       label: 'Taux de TVA', render: v => v === -1 ? <span className={styles.badgeMulti}>Multi</span> : (v != null ? v + ' %' : '—'),
     editable: { type: 'pills', options: TVA_RATE_OPTIONS } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
@@ -580,6 +580,10 @@ export default function Transactions() {
     try {
       let patch
       if (field === 'taux_tva') {
+        // Multi-TVA needs the full form editor, can't be edited inline
+        if (row.taux_tva === -1) {
+          return
+        }
         // TTC reste fixe — HT et TVA s'ajustent (même logique que page TVA)
         const taux = Math.round(newValue * 100) / 100
         const ttc  = row.montant_ttc ?? 0
