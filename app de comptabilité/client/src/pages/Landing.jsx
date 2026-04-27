@@ -164,6 +164,11 @@ export default function Landing() {
             <Link to="/register" className={styles.footerLink}>Inscription</Link>
           </nav>
         </div>
+        <div className={styles.footerLegal}>
+          <Link to="/cgu" className={styles.footerLink}>CGU</Link>
+          <Link to="/mentions-legales" className={styles.footerLink}>Mentions légales</Link>
+          <Link to="/politique-confidentialite" className={styles.footerLink}>Politique de confidentialité</Link>
+        </div>
         <div className={styles.footerBottom}>
           © 2025 — 3 € / mois — TVA non applicable
         </div>

@@ -123,6 +123,20 @@ export async function uploadExpenseNote(formData) {
 
 // ── Routes publiques (sans JWT) ───────────────────────────────────────────────
 
+export const forgotPassword = (email) =>
+  fetch('/api/auth/forgot-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  }).then(r => r.json().then(d => r.ok ? d : Promise.reject(new Error(d.error))))
+
+export const resetPassword = (token, password) =>
+  fetch('/api/auth/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token, password }),
+  }).then(r => r.json().then(d => r.ok ? d : Promise.reject(new Error(d.error))))
+
 export const checkInviteToken = (token) =>
   fetch(`/api/invite/${token}`)
     .then(r => r.json().then(d => r.ok ? d : Promise.reject(new Error(d.error))))

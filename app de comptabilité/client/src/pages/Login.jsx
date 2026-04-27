@@ -67,6 +67,10 @@ export default function Login() {
           <button className={styles.btn} type="submit" disabled={loading}>
             {loading ? 'Connexion…' : 'Se connecter'}
           </button>
+
+          <p className={styles.forgotLink}>
+            <Link to="/mot-de-passe-oublie" className={styles.link}>Mot de passe oublié ?</Link>
+          </p>
         </form>
 
         <p className={styles.footer}>

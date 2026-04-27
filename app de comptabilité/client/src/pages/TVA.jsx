@@ -99,40 +99,65 @@ function AttachmentCell({ row }) {
 // ── EditableCell ──────────────────────────────────────────────────────────────
 
 function EditableCell({ value, field, row, align, onSave }) {
-  const [editing, setEditing] = useState(false)
-  const [draft,   setDraft]   = useState('')
+  const [editing, setEditing]     = useState(false)
+  const [draft, setDraft]         = useState('')
+  const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
   const inputRef = useRef(null)
+  const timerRef = useRef(null)
+
+  useEffect(() => () => clearTimeout(timerRef.current), [])
 
   function start() {
-    setDraft(field === 'taux_tva' ? String(value) : String(value))
+    setDraft(String(value))
     setEditing(true)
   }
 
-  function commit() {
-    const parsed = parseFloat(String(draft).replace(',', '.'))
-    if (!isNaN(parsed) && parsed !== value) onSave(field, parsed, row)
+  async function commit(overrideValue) {
     setEditing(false)
+    const parsed = overrideValue !== undefined
+      ? overrideValue
+      : parseFloat(String(draft).replace(',', '.'))
+    if (!isNaN(parsed) && parsed !== value) {
+      setSaveStatus('saving')
+      clearTimeout(timerRef.current)
+      try {
+        await onSave(field, parsed, row)
+        setSaveStatus('saved')
+        timerRef.current = setTimeout(() => setSaveStatus(null), 1500)
+      } catch {
+        setSaveStatus('error')
+        timerRef.current = setTimeout(() => setSaveStatus(null), 2500)
+      }
+    }
   }
 
   useEffect(() => {
-    if (editing && inputRef.current) inputRef.current.focus()
+    if (editing && inputRef.current) {
+      inputRef.current.focus({ preventScroll: true })
+      inputRef.current.select?.()
+    }
   }, [editing])
+
+  const statusClass = saveStatus === 'saved' ? styles.editableCellSaved
+    : saveStatus === 'error' ? styles.editableCellError
+    : ''
 
   if (editing && field === 'taux_tva') {
     return (
       <td className={`${align} ${styles.tdEditing}`}>
-        <select
-          ref={inputRef}
-          className={styles.editSelect}
-          value={draft}
-          onChange={e => setDraft(e.target.value)}
-          onBlur={() => { onSave(field, parseFloat(draft), row); setEditing(false) }}
-          onKeyDown={e => { if (e.key === 'Escape') setEditing(false) }}
-        >
+        <div className={styles.tvaPillsWrapper}>
           {TAUX_EDIT_OPTIONS.map(t => (
-            <option key={t} value={t}>{t} %</option>
+            <button
+              key={t}
+              type="button"
+              className={`${styles.tvaPill} ${value === t ? styles.tvaPillActive : ''}`}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => commit(t)}
+            >
+              {t} %
+            </button>
           ))}
-        </select>
+        </div>
       </td>
     )
   }
@@ -148,7 +173,7 @@ function EditableCell({ value, field, row, align, onSave }) {
           min="0"
           value={draft}
           onChange={e => setDraft(e.target.value)}
-          onBlur={commit}
+          onBlur={() => commit()}
           onKeyDown={e => { if (e.key === 'Enter') commit(); if (e.key === 'Escape') setEditing(false) }}
         />
       </td>
@@ -156,8 +181,15 @@ function EditableCell({ value, field, row, align, onSave }) {
   }
 
   return (
-    <td className={`${align} ${styles.editableCell}`} onClick={start} title="Cliquer pour modifier">
+    <td
+      className={`${align} ${styles.editableCell} ${statusClass}`}
+      onClick={start}
+      title="Cliquer pour modifier"
+    >
       {field === 'taux_tva' ? `${value} %` : formatEur(value)}
+      {saveStatus === 'saving' && <span className={styles.tvaSaveIndicator}>···</span>}
+      {saveStatus === 'saved'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveOk}`}>✓</span>}
+      {saveStatus === 'error'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveErr}`}>✕</span>}
     </td>
   )
 }
@@ -325,6 +357,7 @@ export default function TVA() {
       setData(d)
     } catch (e) {
       console.error('Erreur enregistrement TVA :', e.message)
+      throw e
     }
   }
 

@@ -1,6 +1,8 @@
-const bcrypt = require('bcrypt');
-const jwt = require('jsonwebtoken');
+const bcrypt  = require('bcrypt');
+const jwt     = require('jsonwebtoken');
+const crypto  = require('crypto');
 const masterDb = require('../db/masterDb');
+const { sendPasswordResetEmail } = require('./emailService');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -90,4 +92,56 @@ function verifyToken(token) {
   return jwt.verify(token, JWT_SECRET);
 }
 
-module.exports = { register, login, verifyToken, signToken };
+async function forgotPassword({ email }) {
+  if (!email) throw Object.assign(new Error('Email requis'), { status: 400 });
+
+  // Purge expired tokens for this email
+  masterDb.run(
+    'DELETE FROM password_reset_tokens WHERE email = ? OR expires_at < ?',
+    [email, Date.now()]
+  );
+
+  // Don't reveal whether the email exists — always respond 200
+  const user = masterDb.prepare('SELECT id FROM users WHERE email = ?').get(email);
+  if (!user) return; // silent
+
+  const rawToken  = crypto.randomBytes(32).toString('hex');
+  const tokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
+  const expiresAt = Date.now() + 60 * 60 * 1000; // 1 hour
+
+  masterDb.run(
+    'INSERT INTO password_reset_tokens (email, token_hash, expires_at) VALUES (?, ?, ?)',
+    [email, tokenHash, expiresAt]
+  );
+
+  const appUrl  = (process.env.APP_URL || 'http://localhost:5173').replace(/\/$/, '');
+  const resetUrl = `${appUrl}/reset-password?token=${rawToken}`;
+  await sendPasswordResetEmail(email, resetUrl);
+}
+
+async function resetPassword({ token, password }) {
+  if (!token || !password) {
+    throw Object.assign(new Error('Token et mot de passe requis'), { status: 400 });
+  }
+  if (password.length < 8) {
+    throw Object.assign(new Error('Mot de passe trop court (8 caractères min)'), { status: 400 });
+  }
+
+  const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+  const record = masterDb
+    .prepare('SELECT * FROM password_reset_tokens WHERE token_hash = ? AND used = 0')
+    .get(tokenHash);
+
+  if (!record) {
+    throw Object.assign(new Error('Lien invalide ou déjà utilisé'), { status: 400 });
+  }
+  if (record.expires_at < Date.now()) {
+    throw Object.assign(new Error('Ce lien a expiré. Faites une nouvelle demande.'), { status: 400 });
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  masterDb.run('UPDATE users SET password_hash = ? WHERE email = ?', [passwordHash, record.email]);
+  masterDb.run('UPDATE password_reset_tokens SET used = 1 WHERE token_hash = ?', [tokenHash]);
+}
+
+module.exports = { register, login, verifyToken, signToken, forgotPassword, resetPassword };

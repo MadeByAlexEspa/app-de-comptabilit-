@@ -13,6 +13,8 @@ import Register from './pages/Register.jsx'
 import Admin from './pages/Admin.jsx'
 import AdminLogin from './pages/AdminLogin.jsx'
 import InviteAccept from './pages/InviteAccept.jsx'
+import ForgotPassword from './pages/ForgotPassword.jsx'
+import ResetPassword from './pages/ResetPassword.jsx'
 import Landing from './pages/Landing.jsx'
 import CGU from './pages/CGU.jsx'
 import MentionsLegales from './pages/MentionsLegales.jsx'
@@ -38,7 +40,9 @@ function AppRoutes() {
       <Route path="/landing"        element={<Landing />} />
       <Route path="/login"          element={<Login />} />
       <Route path="/register"       element={<Register />} />
-      <Route path="/invite/:token"  element={<InviteAccept />} />
+      <Route path="/invite/:token"         element={<InviteAccept />} />
+      <Route path="/mot-de-passe-oublie"   element={<ForgotPassword />} />
+      <Route path="/reset-password"        element={<ResetPassword />} />
       <Route path="/cgu"                        element={<CGU />} />
       <Route path="/mentions-legales"           element={<MentionsLegales />} />
       <Route path="/politique-confidentialite"  element={<PolitiqueConfidentialite />} />

@@ -489,3 +489,88 @@
 .ttcCell {
   font-weight: 600;
 }
+
+/* Save status flash */
+.editableCellSaved {
+  animation: tvaCellFlashGreen 1.5s ease forwards;
+}
+
+.editableCellError {
+  animation: tvaCellFlashRed 2.5s ease forwards;
+}
+
+@keyframes tvaCellFlashGreen {
+  0%, 20% { background: #dcfce7; }
+  100% { background: transparent; }
+}
+
+@keyframes tvaCellFlashRed {
+  0%, 20% { background: #fee2e2; }
+  100% { background: transparent; }
+}
+
+.tvaSaveIndicator {
+  font-size: 11px;
+  font-weight: 600;
+  margin-left: 5px;
+  color: #9ca3af;
+}
+
+.tvaSaveOk {
+  color: #16a34a;
+  animation: tvaFadeOut 1.5s ease forwards;
+}
+
+.tvaSaveErr {
+  color: #dc2626;
+}
+
+@keyframes tvaFadeOut {
+  0%, 40% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+/* Pills pour taux TVA */
+.tvaPillsWrapper {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 7px 10px;
+  background: #eff6ff;
+  outline: 2px solid #1a56db;
+  min-height: 44px;
+  box-sizing: border-box;
+  flex-wrap: wrap;
+}
+
+.tvaPill {
+  padding: 4px 10px;
+  border: 1px solid #d1d5db;
+  border-radius: 99px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  background: #fff;
+  color: #374151;
+  font-family: inherit;
+  line-height: 1;
+  transition: border-color 0.1s, color 0.1s, background 0.1s;
+  white-space: nowrap;
+}
+
+.tvaPill:hover {
+  border-color: #1a56db;
+  color: #1a56db;
+  background: #f0f6ff;
+}
+
+.tvaPillActive {
+  background: #1a56db;
+  border-color: #1a56db;
+  color: #fff;
+}
+
+.tvaPillActive:hover {
+  background: #1d4ed8;
+  color: #fff;
+}

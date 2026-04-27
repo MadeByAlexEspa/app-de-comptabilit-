@@ -22,6 +22,13 @@ function AttachmentBadge({ row }) {
 
 // ── Options pour l'édition inline ─────────────────────────────────────────
 
+const TVA_RATE_OPTIONS = [
+  { value: '0',   label: '0 %' },
+  { value: '5.5', label: '5,5 %' },
+  { value: '10',  label: '10 %' },
+  { value: '20',  label: '20 %' },
+]
+
 const STATUT_OPTIONS = [
   { value: 'payee',      label: 'Payée' },
   { value: 'en_attente', label: 'En attente' },
@@ -234,11 +241,11 @@ const COLUMNS_TOUS = [
     sortable: false },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
   { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
-    editable: { type: 'number', step: '0.5', min: '0', max: '100' } },
+    editable: { type: 'pills', options: TVA_RATE_OPTIONS } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',      label: 'Catégorie',
-    editable: { type: 'select', options: row => row._type === 'entree' ? CAT_ENTREES_OPTIONS : CAT_SORTIES_OPTIONS } },
+    editable: { type: 'combobox', options: row => row._type === 'entree' ? CAT_ENTREES_OPTIONS : CAT_SORTIES_OPTIONS } },
   { key: 'statut',         label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
     editable: { type: 'select', options: STATUT_OPTIONS } },
   { key: 'has_attachment', label: '📎',          render: (_, row) => <AttachmentBadge row={row} />, sortable: false },
@@ -251,11 +258,11 @@ const COLUMNS_ENTREES = [
     editable: { type: 'text' } },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
   { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
-    editable: { type: 'number', step: '0.5', min: '0', max: '100' } },
+    editable: { type: 'pills', options: TVA_RATE_OPTIONS } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',      label: 'Catégorie',
-    editable: { type: 'select', options: CAT_ENTREES_OPTIONS } },
+    editable: { type: 'combobox', options: CAT_ENTREES_OPTIONS } },
   { key: 'statut',         label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
     editable: { type: 'select', options: STATUT_OPTIONS } },
   { key: 'has_attachment', label: '📎',          render: (_, row) => <AttachmentBadge row={row} />, sortable: false },
@@ -268,11 +275,11 @@ const COLUMNS_SORTIES = [
     editable: { type: 'text' } },
   { key: 'montant_ht',     label: 'Montant HT',  render: v => formatEur(v) },
   { key: 'taux_tva',       label: 'Taux de TVA', render: v => v != null ? `${v} %` : '—',
-    editable: { type: 'number', step: '0.5', min: '0', max: '100' } },
+    editable: { type: 'pills', options: TVA_RATE_OPTIONS } },
   { key: 'montant_ttc',    label: 'TTC',         render: v => <strong>{formatEur(v)}</strong>,
     editable: { type: 'number', step: '0.01', min: '0' } },
   { key: 'categorie',      label: 'Catégorie',
-    editable: { type: 'select', options: CAT_SORTIES_OPTIONS } },
+    editable: { type: 'combobox', options: CAT_SORTIES_OPTIONS } },
   { key: 'statut',         label: 'Statut',      render: v => <StatutBadge statut={v} />, sortable: false,
     editable: { type: 'select', options: STATUT_OPTIONS } },
   { key: 'has_attachment', label: '📎',          render: (_, row) => <AttachmentBadge row={row} />, sortable: false },
@@ -566,6 +573,7 @@ export default function Transactions() {
         else          await updateDepense(row.id, patch)
       } catch (e) {
         setActionError(e.message)
+        throw e
       }
       return
     }
@@ -592,6 +600,7 @@ export default function Transactions() {
       else          await updateDepense(row.id, patch)
     } catch (e) {
       setActionError(e.message)
+      throw e
     }
   }
 

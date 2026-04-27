@@ -469,6 +469,16 @@
   color: #fff;
 }
 
+.footerLegal {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 16px;
+  display: flex;
+  justify-content: center;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
 .footerBottom {
   max-width: 900px;
   margin: 0 auto;
