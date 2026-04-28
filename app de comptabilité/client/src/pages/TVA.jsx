@@ -99,7 +99,7 @@ function AttachmentCell({ row }) {
 
 // ── EditableCell ──────────────────────────────────────────────────────────────
 
-function EditableCell({ value, field, row, align, onSave, children }) {
+function EditableCell({ value, field, row, align, onSave }) {
   const [editing, setEditing]     = useState(false)
   const [draft, setDraft]         = useState('')
   const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
@@ -187,8 +187,91 @@ function EditableCell({ value, field, row, align, onSave, children }) {
       onClick={start}
       title="Cliquer pour modifier"
     >
-      <span>{field === 'taux_tva' ? `${value} %` : formatEur(value)}</span>
-      {children}
+      {field === 'taux_tva' ? `${value} %` : formatEur(value)}
+      {saveStatus === 'saving' && <span className={styles.tvaSaveIndicator}>···</span>}
+      {saveStatus === 'saved'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveOk}`}>✓</span>}
+      {saveStatus === 'error'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveErr}`}>✕</span>}
+    </td>
+  )
+}
+
+// ── TauxCell ──────────────────────────────────────────────────────────────────
+
+function TauxCell({ row, onSave, onSplit }) {
+  const [editing, setEditing]       = useState(false)
+  const [saveStatus, setSaveStatus] = useState(null)
+  const timerRef = useRef(null)
+
+  useEffect(() => () => clearTimeout(timerRef.current), [])
+
+  async function commit(taux) {
+    setEditing(false)
+    if (taux === row.taux_tva) return
+    setSaveStatus('saving')
+    clearTimeout(timerRef.current)
+    try {
+      await onSave('taux_tva', taux, row)
+      setSaveStatus('saved')
+      timerRef.current = setTimeout(() => setSaveStatus(null), 1500)
+    } catch {
+      setSaveStatus('error')
+      timerRef.current = setTimeout(() => setSaveStatus(null), 2500)
+    }
+  }
+
+  if (row.taux_tva === -1) {
+    return (
+      <td className={`${styles.right} ${styles.tvaCell}`}>
+        <span className={styles.badgeMulti}>Multi</span>
+        <button
+          className={styles.splitBtn}
+          type="button"
+          title="Ventiler la TVA"
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onSplit() }}
+        >⊞</button>
+      </td>
+    )
+  }
+
+  if (editing) {
+    return (
+      <td className={`${styles.right} ${styles.tdEditing}`}>
+        <div className={styles.tvaPillsWrapper}>
+          {TAUX_EDIT_OPTIONS.map(t => (
+            <button
+              key={t}
+              type="button"
+              className={`${styles.tvaPill} ${row.taux_tva === t ? styles.tvaPillActive : ''}`}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => commit(t)}
+            >
+              {t} %
+            </button>
+          ))}
+        </div>
+      </td>
+    )
+  }
+
+  const statusClass = saveStatus === 'saved' ? styles.editableCellSaved
+    : saveStatus === 'error' ? styles.editableCellError
+    : ''
+
+  return (
+    <td
+      className={`${styles.right} ${styles.tvaCell} ${styles.editableCell} ${statusClass}`}
+      onClick={() => setEditing(true)}
+      title="Cliquer pour modifier"
+    >
+      <span>{row.taux_tva} %</span>
+      <button
+        className={styles.splitBtn}
+        type="button"
+        title="Ventiler la TVA"
+        onMouseDown={e => e.stopPropagation()}
+        onClick={e => { e.stopPropagation(); onSplit() }}
+      >⊞</button>
       {saveStatus === 'saving' && <span className={styles.tvaSaveIndicator}>···</span>}
       {saveStatus === 'saved'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveOk}`}>✓</span>}
       {saveStatus === 'error'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveErr}`}>✕</span>}
@@ -546,16 +629,11 @@ export default function TVA() {
                         <td>{formatDate(f.date)}</td>
                         <td>{f.client}</td>
                         <td className={styles.right}>{formatEur(f.montant_ht)}</td>
-                        {f.taux_tva === -1 ? (
-                          <td className={`${styles.right} ${styles.tvaCell}`}>
-                            <span className={styles.badgeMulti}>Multi</span>
-                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
-                          </td>
-                        ) : (
-                          <EditableCell value={f.taux_tva} field="taux_tva" row={f} align={`${styles.right} ${styles.tvaCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)}>
-                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
-                          </EditableCell>
-                        )}
+                        <TauxCell
+                          row={f}
+                          onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)}
+                          onSplit={() => setSplitTarget({ row: f, type: 'facture' })}
+                        />
                         <EditableCell value={f.montant_tva} field="montant_tva" row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <AttachmentCell row={f} />
@@ -630,16 +708,11 @@ export default function TVA() {
                         <td>{formatDate(d.date)}</td>
                         <td>{d.fournisseur}</td>
                         <td className={styles.right}>{formatEur(d.montant_ht)}</td>
-                        {d.taux_tva === -1 ? (
-                          <td className={`${styles.right} ${styles.tvaCell}`}>
-                            <span className={styles.badgeMulti}>Multi</span>
-                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
-                          </td>
-                        ) : (
-                          <EditableCell value={d.taux_tva} field="taux_tva" row={d} align={`${styles.right} ${styles.tvaCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)}>
-                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
-                          </EditableCell>
-                        )}
+                        <TauxCell
+                          row={d}
+                          onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)}
+                          onSplit={() => setSplitTarget({ row: d, type: 'depense' })}
+                        />
                         <EditableCell value={d.montant_tva} field="montant_tva" row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <AttachmentCell row={d} />
