@@ -1,8 +1,10 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Trash2, Paperclip } from 'lucide-react'
 import { buildCategoriePatch } from '../lib/tvaRules.js'
+import { getCatEntrees, getCatSorties } from '../lib/categories.js'
 import { useFactures } from '../hooks/useFactures.js'
 import { useDepenses } from '../hooks/useDepenses.js'
+import { useWorkspace } from '../context/WorkspaceContext.jsx'
 import DataTable from '../components/DataTable/DataTable.jsx'
 import Modal from '../components/Modal/Modal.jsx'
 import EntryForm from '../components/EntryForm/EntryForm.jsx'
@@ -369,6 +371,7 @@ function saveFilters(patch) {
 }
 
 export default function Transactions() {
+  const { profile } = useWorkspace() || { profile: {} }
   const _f = loadFilters()
   const [activeTab, setActiveTab]     = useState(_f.activeTab || 'tous')
   const [page, setPage]               = useState(1)
@@ -472,9 +475,20 @@ export default function Transactions() {
   }), [openSplit])
 
   const columns = useMemo(() => {
+    const catE = getCatEntrees(profile?.activite_type)
+    const catS = getCatSorties(profile?.activite_type)
     const base = isTous ? COLUMNS_TOUS : isEntrees ? COLUMNS_ENTREES : COLUMNS_SORTIES
-    return base.map(col => col.key === 'taux_tva' ? tvaCell : col)
-  }, [isTous, isEntrees, tvaCell])
+    return base.map(col => {
+      if (col.key === 'taux_tva') return tvaCell
+      if (col.key === 'categorie') {
+        const dynOpts = isTous
+          ? (row => row._type === 'entree' ? catE : catS)
+          : (isEntrees ? catE : catS)
+        return { ...col, editable: { ...col.editable, options: dynOpts } }
+      }
+      return col
+    })
+  }, [isTous, isEntrees, tvaCell, profile?.activite_type])
 
   const hasFilters = !!(filterTiers || filterDateFrom || filterDateTo || filterCategorie || filterStatut)
 
