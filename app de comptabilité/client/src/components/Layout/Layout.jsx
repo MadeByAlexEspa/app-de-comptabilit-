@@ -11,9 +11,9 @@ import styles from './Layout.module.css'
 const navItems = [
   { to: '/', label: 'Tableau de bord', Icon: LayoutDashboard, end: true },
   { to: '/transactions', label: 'Transactions', Icon: ArrowLeftRight },
-  { to: '/notes-de-frais', label: 'Notes de frais', Icon: Camera },
   { to: '/tva', label: 'TVA', Icon: Receipt },
   { to: '/exercice', label: 'Comptes annuels', Icon: BookOpen },
+  { to: '/notes-de-frais', label: 'Notes de frais', Icon: Camera },
 ]
 
 export default function Layout({ children }) {
