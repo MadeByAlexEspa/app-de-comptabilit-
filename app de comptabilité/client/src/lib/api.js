@@ -86,10 +86,11 @@ export const api = {
   authMe:       ()     => request('/auth/me'),
 
   // Workspace
-  getWorkspace:        ()     => request('/workspace'),
-  renameWorkspace:     (name) => request('/workspace/name',       { method: 'PATCH',  body: { name } }),
-  removeWorkspaceUser: (id)   => request(`/workspace/users/${id}`,{ method: 'DELETE' }),
-  deleteWorkspace:     ()     => request('/workspace',            { method: 'DELETE' }),
+  getWorkspace:            ()     => request('/workspace'),
+  renameWorkspace:         (name) => request('/workspace/name',    { method: 'PATCH',  body: { name } }),
+  updateWorkspaceProfile:  (data) => request('/workspace/profile', { method: 'PATCH',  body: data }),
+  removeWorkspaceUser:     (id)   => request(`/workspace/users/${id}`,{ method: 'DELETE' }),
+  deleteWorkspace:         ()     => request('/workspace',         { method: 'DELETE' }),
 
   // Invitations par token
   createInvitation: (email) => request('/workspace/invitations',      { method: 'POST',   body: { email } }),

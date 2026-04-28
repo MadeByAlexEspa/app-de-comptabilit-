@@ -1,7 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import styles from './EntryForm.module.css'
 import { formatEur } from '../../lib/api.js'
 import { getTvaRegime } from '../../lib/tvaRules.js'
+import { useWorkspace } from '../../context/WorkspaceContext.jsx'
+
 
 // Taux légaux de TVA (CGI art. 278 à 281 nonies)
 const TAUX_TVA = [
@@ -156,6 +158,30 @@ const GROUPES_SORTIES = [
   },
 ]
 
+// Recommandées — codes PCG → options exactes depuis les GROUPES ci-dessus
+function pick(groupes, ...codes) {
+  const all = groupes.flatMap(g => g.options)
+  return codes.map(c => all.find(o => o.startsWith(c + ' '))).filter(Boolean)
+}
+
+const RECOMMANDEES_ENTREES = {
+  saas:         pick(GROUPES_ENTREES, '706', '708'),
+  conseil:      pick(GROUPES_ENTREES, '706', '708'),
+  evenementiel: pick(GROUPES_ENTREES, '706', '707', '708'),
+  commerce:     pick(GROUPES_ENTREES, '707', '701', '708'),
+  formation:    pick(GROUPES_ENTREES, '706', '74',  '708'),
+  immobilier:   pick(GROUPES_ENTREES, '706', '708'),
+}
+
+const RECOMMANDEES_SORTIES = {
+  saas:         pick(GROUPES_SORTIES, '618', '611', '623', '641', '645', '627'),
+  conseil:      pick(GROUPES_SORTIES, '625', '618', '622', '627', '616', '626'),
+  evenementiel: pick(GROUPES_SORTIES, '613', '611', '623', '625', '627'),
+  commerce:     pick(GROUPES_SORTIES, '607', '606', '613', '641', '645', '623', '627'),
+  formation:    pick(GROUPES_SORTIES, '625', '618', '622', '613', '627'),
+  immobilier:   pick(GROUPES_SORTIES, '615', '613', '616', '627'),
+}
+
 const STATUTS = [
   { value: 'payee',      label: 'Payée' },
   { value: 'en_attente', label: 'En attente' },
@@ -187,6 +213,7 @@ function defaultValues(type) {
 }
 
 export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
+  const { profile } = useWorkspace() || { profile: {} }
   const [form, setForm]         = useState(() => ({ ...defaultValues(type), ...initialData }))
   const [submitting, setSubmitting] = useState(false)
   const [error, setError]       = useState(null)
@@ -307,7 +334,14 @@ export default function EntryForm({ type, initialData, onSubmit, onCancel }) {
     }
   }
 
-  const groupes = type === 'facture' ? GROUPES_ENTREES : GROUPES_SORTIES
+  const groupes = useMemo(() => {
+    const base    = type === 'facture' ? GROUPES_ENTREES : GROUPES_SORTIES
+    const reco    = type === 'facture'
+      ? RECOMMANDEES_ENTREES[profile?.activite_type]
+      : RECOMMANDEES_SORTIES[profile?.activite_type]
+    if (!reco || reco.length === 0) return base
+    return [{ label: '★ Recommandées pour votre activité', options: reco }, ...base]
+  }, [type, profile?.activite_type])
 
   return (
     <form className={styles.form} onSubmit={handleSubmit} noValidate>

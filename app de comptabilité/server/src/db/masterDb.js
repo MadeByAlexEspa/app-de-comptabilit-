@@ -97,6 +97,10 @@ masterDb.exec(`
 // Migration: last_login_at column
 try { masterDb.exec('ALTER TABLE users ADD COLUMN last_login_at TEXT'); } catch (_) {}
 
+// Migration: workspace activity & structure profile
+try { masterDb.exec('ALTER TABLE workspaces ADD COLUMN activite_type TEXT'); } catch (_) {}
+try { masterDb.exec('ALTER TABLE workspaces ADD COLUMN structure_type TEXT'); } catch (_) {}
+
 // Migration: promote first user of workspace 1 to superadmin — runs only once
 // (idempotent: only fires if no superadmin exists yet AND workspace 1 has exactly one user)
 const hasSuperAdmin = masterDb.prepare("SELECT COUNT(*) AS cnt FROM users WHERE role = 'superadmin'").get();

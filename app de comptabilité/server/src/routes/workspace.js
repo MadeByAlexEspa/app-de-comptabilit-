@@ -10,7 +10,7 @@ router.get('/', (req, res) => {
   const { workspaceId } = req.user;
 
   const workspace = masterDb
-    .prepare('SELECT id, name, slug, created_at FROM workspaces WHERE id = ?')
+    .prepare('SELECT id, name, slug, activite_type, structure_type, created_at FROM workspaces WHERE id = ?')
     .get(workspaceId);
 
   if (!workspace) {
@@ -55,6 +55,29 @@ router.patch('/name', (req, res) => {
   const { token } = signToken(currentUser, updatedWorkspace);
 
   return res.json({ id: updatedWorkspace.id, name: updatedWorkspace.name, slug: updatedWorkspace.slug, token });
+});
+
+// ── PATCH /api/workspace/profile ─────────────────────────────────────────────
+// Updates the workspace activity & structure profile.
+router.patch('/profile', (req, res) => {
+  const { workspaceId } = req.user;
+  const { activite_type, structure_type } = req.body;
+
+  const VALID_ACTIVITES  = ['saas', 'conseil', 'evenementiel', 'commerce', 'formation', 'immobilier', 'autre'];
+  const VALID_STRUCTURES = ['micro', 'ei', 'eurl', 'sarl', 'sas', 'sa', 'autre'];
+
+  if (activite_type  != null && !VALID_ACTIVITES.includes(activite_type)) {
+    return res.status(400).json({ error: 'Type d\'activité invalide' });
+  }
+  if (structure_type != null && !VALID_STRUCTURES.includes(structure_type)) {
+    return res.status(400).json({ error: 'Type de structure invalide' });
+  }
+
+  masterDb
+    .prepare('UPDATE workspaces SET activite_type = ?, structure_type = ? WHERE id = ?')
+    .run(activite_type ?? null, structure_type ?? null, workspaceId);
+
+  return res.json({ success: true });
 });
 
 // ── DELETE /api/workspace/users/:id ──────────────────────────────────────────

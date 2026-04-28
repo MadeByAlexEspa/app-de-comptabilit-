@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext.jsx'
+import { WorkspaceProvider } from './context/WorkspaceContext.jsx'
 import Layout from './components/Layout/Layout.jsx'
 import Dashboard from './pages/Dashboard.jsx'
 import Transactions from './pages/Transactions.jsx'
@@ -54,6 +55,7 @@ function AppRoutes() {
       {/* ── App utilisateur ── */}
       <Route path="/*" element={
         <PrivateRoute>
+          <WorkspaceProvider>
           <Layout>
             <Routes>
               <Route path="/"             element={<Dashboard />} />
@@ -66,6 +68,7 @@ function AppRoutes() {
               <Route path="*"             element={<Navigate to="/" replace />} />
             </Routes>
           </Layout>
+          </WorkspaceProvider>
         </PrivateRoute>
       } />
     </Routes>

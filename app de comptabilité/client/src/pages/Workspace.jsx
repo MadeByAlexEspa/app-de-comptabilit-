@@ -1,8 +1,104 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api, formatDate } from '../lib/api.js'
 import { useAuth } from '../context/AuthContext.jsx'
+import { useWorkspace } from '../context/WorkspaceContext.jsx'
 import Modal from '../components/Modal/Modal.jsx'
 import styles from './Workspace.module.css'
+
+const ACTIVITE_OPTIONS = [
+  { value: '',            label: '— Non renseigné —' },
+  { value: 'saas',        label: 'SaaS / Logiciel' },
+  { value: 'conseil',     label: 'Conseil' },
+  { value: 'evenementiel',label: 'Événementiel' },
+  { value: 'commerce',    label: 'Commerce / Retail' },
+  { value: 'formation',   label: 'Formation' },
+  { value: 'immobilier',  label: 'Immobilier' },
+  { value: 'autre',       label: 'Autre' },
+]
+
+const STRUCTURE_OPTIONS = [
+  { value: '',      label: '— Non renseigné —' },
+  { value: 'micro', label: 'Micro-entreprise / Auto-entrepreneur' },
+  { value: 'ei',    label: 'Entreprise individuelle (EI / EIRL)' },
+  { value: 'eurl',  label: 'EURL' },
+  { value: 'sarl',  label: 'SARL' },
+  { value: 'sas',   label: 'SAS / SASU' },
+  { value: 'sa',    label: 'SA' },
+  { value: 'autre', label: 'Autre' },
+]
+
+function ActivityProfileSection({ workspace, onSaved }) {
+  const { refreshProfile } = useWorkspace()
+  const [activite,  setActivite]  = useState(workspace.activite_type  || '')
+  const [structure, setStructure] = useState(workspace.structure_type || '')
+  const [saving,    setSaving]    = useState(false)
+  const [success,   setSuccess]   = useState(null)
+  const [error,     setError]     = useState(null)
+
+  async function handleSubmit(e) {
+    e.preventDefault()
+    setSaving(true)
+    setSuccess(null)
+    setError(null)
+    try {
+      await api.updateWorkspaceProfile({
+        activite_type:  activite  || null,
+        structure_type: structure || null,
+      })
+      setSuccess('Profil enregistré.')
+      refreshProfile()
+      if (onSaved) onSaved({ activite_type: activite || null, structure_type: structure || null })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const unchanged = activite === (workspace.activite_type || '') && structure === (workspace.structure_type || '')
+
+  return (
+    <section className={styles.section} aria-labelledby="activity-title">
+      <h2 className={styles.sectionTitle} id="activity-title">Profil d&apos;activité</h2>
+      <p className={styles.pageSubtitle} style={{ marginBottom: '16px' }}>
+        Ces informations personnalisent les catégories comptables recommandées dans vos formulaires.
+      </p>
+      <div className={styles.card}>
+        <form className={styles.form} onSubmit={handleSubmit}>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="activite-type">Type d&apos;activité</label>
+            <select
+              id="activite-type"
+              className={styles.select}
+              value={activite}
+              onChange={e => { setActivite(e.target.value); setSuccess(null) }}
+            >
+              {ACTIVITE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className={styles.field}>
+            <label className={styles.label} htmlFor="structure-type">Type de structure</label>
+            <select
+              id="structure-type"
+              className={styles.select}
+              value={structure}
+              onChange={e => { setStructure(e.target.value); setSuccess(null) }}
+            >
+              {STRUCTURE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </div>
+          <div className={styles.inputRow} style={{ marginTop: '8px' }}>
+            <button className={styles.btn} type="submit" disabled={saving || unchanged}>
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+          {success && <p className={styles.success} role="status">{success}</p>}
+          {error   && <p className={styles.error}   role="alert">{error}</p>}
+        </form>
+      </div>
+    </section>
+  )
+}
 
 // ── Section : Informations ────────────────────────────────────────────────────
 
@@ -475,6 +571,7 @@ function DangerZoneSection() {
 
 const TABS = [
   { id: 'general',     label: 'Général'     },
+  { id: 'activite',    label: 'Activité'    },
   { id: 'members',     label: 'Membres'     },
   { id: 'invitations', label: 'Invitations' },
 ]
@@ -541,6 +638,12 @@ export default function Workspace() {
             />
             <DangerZoneSection />
           </>
+        )}
+        {activeTab === 'activite' && (
+          <ActivityProfileSection
+            workspace={workspace}
+            onSaved={fields => setWorkspace(prev => ({ ...prev, ...fields }))}
+          />
         )}
         {activeTab === 'members' && (
           <MembersTab
