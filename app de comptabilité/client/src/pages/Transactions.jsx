@@ -350,9 +350,6 @@ function Pagination({ page, totalPages, onChange }) {
   )
 }
 
-  }
-}
-
 function saveFilters(patch) {
   try {
     const current = loadFilters()
