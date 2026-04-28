@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { Paperclip } from 'lucide-react'
 import { api, formatEur, formatDate } from '../lib/api.js'
 import Spinner from '../components/Spinner/Spinner.jsx'
+import TvaSplitPanel from '../components/TvaSplitPanel/TvaSplitPanel.jsx'
 import styles from './TVA.module.css'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -98,7 +99,7 @@ function AttachmentCell({ row }) {
 
 // ── EditableCell ──────────────────────────────────────────────────────────────
 
-function EditableCell({ value, field, row, align, onSave }) {
+function EditableCell({ value, field, row, align, onSave, children }) {
   const [editing, setEditing]     = useState(false)
   const [draft, setDraft]         = useState('')
   const [saveStatus, setSaveStatus] = useState(null) // null | 'saving' | 'saved' | 'error'
@@ -186,7 +187,8 @@ function EditableCell({ value, field, row, align, onSave }) {
       onClick={start}
       title="Cliquer pour modifier"
     >
-      {field === 'taux_tva' ? `${value} %` : formatEur(value)}
+      <span>{field === 'taux_tva' ? `${value} %` : formatEur(value)}</span>
+      {children}
       {saveStatus === 'saving' && <span className={styles.tvaSaveIndicator}>···</span>}
       {saveStatus === 'saved'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveOk}`}>✓</span>}
       {saveStatus === 'error'  && <span className={`${styles.tvaSaveIndicator} ${styles.tvaSaveErr}`}>✕</span>}
@@ -318,9 +320,10 @@ export default function TVA() {
   const [year, setYear] = useState(saved.year)
   const [sub,  setSub]  = useState(saved.sub)
 
-  const [data,    setData]    = useState(null)
-  const [loading, setLoading] = useState(false)
-  const [error,   setError]   = useState(null)
+  const [data,        setData]        = useState(null)
+  const [loading,     setLoading]     = useState(false)
+  const [error,       setError]       = useState(null)
+  const [splitTarget, setSplitTarget] = useState(null) // { row, type: 'facture'|'depense' }
 
   // ── Filters for detail tables ──────────────────────────────────────────────
   const [fTiers, setFTiers] = useState('')
@@ -359,6 +362,15 @@ export default function TVA() {
       console.error('Erreur enregistrement TVA :', e.message)
       throw e
     }
+  }
+
+  async function handleSplitSave(row, tvaLines) {
+    const { type, row: target } = splitTarget
+    const patch = { tva_lines: tvaLines }
+    if (type === 'facture') await api.updateFacture(target.id, patch)
+    else                    await api.updateDepense(target.id, patch)
+    const d = await api.getTVA(debut, fin)
+    setData(d)
   }
 
   const label = useMemo(() => periodLabel(mode, year, sub), [mode, year, sub])
@@ -507,7 +519,7 @@ export default function TVA() {
                     onChange={e => setFTaux(e.target.value)}
                   >
                     <option value="">Tous taux TVA</option>
-                    {tauxOptions.map(t => <option key={t} value={t}>{t} %</option>)}
+                    {tauxOptions.map(t => <option key={t} value={t}>{t === '-1' ? 'Multi' : `${t} %`}</option>)}
                   </select>
                   {(fTiers || fTaux) && (
                     <button className={styles.btnClearFilters} onClick={() => { setFTiers(''); setFTaux('') }}>
@@ -534,7 +546,16 @@ export default function TVA() {
                         <td>{formatDate(f.date)}</td>
                         <td>{f.client}</td>
                         <td className={styles.right}>{formatEur(f.montant_ht)}</td>
-                        <EditableCell value={f.taux_tva}    field="taux_tva"    row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
+                        {f.taux_tva === -1 ? (
+                          <td className={`${styles.right} ${styles.tvaCell}`}>
+                            <span className={styles.badgeMulti}>Multi</span>
+                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
+                          </td>
+                        ) : (
+                          <EditableCell value={f.taux_tva} field="taux_tva" row={f} align={`${styles.right} ${styles.tvaCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)}>
+                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
+                          </EditableCell>
+                        )}
                         <EditableCell value={f.montant_tva} field="montant_tva" row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <EditableCell value={f.montant_ttc} field="montant_ttc" row={f} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
                         <AttachmentCell row={f} />
@@ -582,7 +603,7 @@ export default function TVA() {
                     onChange={e => setDTaux(e.target.value)}
                   >
                     <option value="">Tous taux TVA</option>
-                    {tauxOptions.map(t => <option key={t} value={t}>{t} %</option>)}
+                    {tauxOptions.map(t => <option key={t} value={t}>{t === '-1' ? 'Multi' : `${t} %`}</option>)}
                   </select>
                   {(dTiers || dTaux) && (
                     <button className={styles.btnClearFilters} onClick={() => { setDTiers(''); setDTaux('') }}>
@@ -609,7 +630,16 @@ export default function TVA() {
                         <td>{formatDate(d.date)}</td>
                         <td>{d.fournisseur}</td>
                         <td className={styles.right}>{formatEur(d.montant_ht)}</td>
-                        <EditableCell value={d.taux_tva}    field="taux_tva"    row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
+                        {d.taux_tva === -1 ? (
+                          <td className={`${styles.right} ${styles.tvaCell}`}>
+                            <span className={styles.badgeMulti}>Multi</span>
+                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
+                          </td>
+                        ) : (
+                          <EditableCell value={d.taux_tva} field="taux_tva" row={d} align={`${styles.right} ${styles.tvaCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)}>
+                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
+                          </EditableCell>
+                        )}
                         <EditableCell value={d.montant_tva} field="montant_tva" row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <EditableCell value={d.montant_ttc} field="montant_ttc" row={d} align={`${styles.right} ${styles.ttcCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
                         <AttachmentCell row={d} />
@@ -631,6 +661,14 @@ export default function TVA() {
             )}
           </div>
         </>
+      )}
+
+      {splitTarget && (
+        <TvaSplitPanel
+          row={splitTarget.row}
+          onSave={handleSplitSave}
+          onClose={() => setSplitTarget(null)}
+        />
       )}
     </div>
   )
