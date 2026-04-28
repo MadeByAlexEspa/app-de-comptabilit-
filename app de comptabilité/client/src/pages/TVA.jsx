@@ -549,11 +549,11 @@ export default function TVA() {
                         {f.taux_tva === -1 ? (
                           <td className={`${styles.right} ${styles.tvaCell}`}>
                             <span className={styles.badgeMulti}>Multi</span>
-                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
+                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
                           </td>
                         ) : (
                           <EditableCell value={f.taux_tva} field="taux_tva" row={f} align={`${styles.right} ${styles.tvaCell}`} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)}>
-                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
+                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: f, type: 'facture' }) }} title="Ventiler la TVA">⊞</button>
                           </EditableCell>
                         )}
                         <EditableCell value={f.montant_tva} field="montant_tva" row={f} align={styles.right} onSave={(field, val, row) => handleSave('facture', f.id, field, val, row)} />
@@ -633,11 +633,11 @@ export default function TVA() {
                         {d.taux_tva === -1 ? (
                           <td className={`${styles.right} ${styles.tvaCell}`}>
                             <span className={styles.badgeMulti}>Multi</span>
-                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
+                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
                           </td>
                         ) : (
                           <EditableCell value={d.taux_tva} field="taux_tva" row={d} align={`${styles.right} ${styles.tvaCell}`} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)}>
-                            <button className={styles.splitBtn} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
+                            <button className={styles.splitBtn} onMouseDown={e => e.stopPropagation()} onClick={e => { e.stopPropagation(); setSplitTarget({ row: d, type: 'depense' }) }} title="Ventiler la TVA">⊞</button>
                           </EditableCell>
                         )}
                         <EditableCell value={d.montant_tva} field="montant_tva" row={d} align={styles.right} onSave={(field, val, row) => handleSave('depense', d.id, field, val, row)} />
