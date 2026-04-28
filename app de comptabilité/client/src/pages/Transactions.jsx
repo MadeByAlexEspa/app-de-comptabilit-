@@ -350,6 +350,17 @@ function Pagination({ page, totalPages, onChange }) {
   )
 }
 
+const FILTERS_KEY = 'transactions_filters'
+
+function loadFilters() {
+  try {
+    const raw = localStorage.getItem(FILTERS_KEY)
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    return {}
+  }
+}
+
 function saveFilters(patch) {
   try {
     const current = loadFilters()
