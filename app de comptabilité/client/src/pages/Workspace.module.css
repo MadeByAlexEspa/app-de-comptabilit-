@@ -3,18 +3,21 @@
 .page {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 32px;
+  max-width: 960px;
 }
 
 .pageHeader {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-bottom: 20px;
+  border-bottom: 1.5px solid #e5e7eb;
 }
 
 .pageTitle {
   font-family: 'Special Elite', serif;
-  font-size: 24px;
+  font-size: 26px;
   font-weight: 700;
   color: #1a1a1a;
   margin: 0;
@@ -26,24 +29,25 @@
   margin: 0;
 }
 
-/* ── Sections ────────────────────────────────────────────────────────────── */
+/* ── General tab grid ────────────────────────────────────────────────────── */
 
-.section {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
+.generalGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  align-items: start;
 }
 
-.sectionTitle {
-  font-family: 'Special Elite', serif;
-  font-size: 16px;
-  font-weight: 700;
-  color: #1a1a1a;
-  margin: 0;
+@media (max-width: 700px) {
+  .generalGrid {
+    grid-template-columns: 1fr;
+  }
 }
 
-.sectionTitleDanger {
-  color: #dc2626;
+/* ── Danger section ──────────────────────────────────────────────────────── */
+
+.dangerSection {
+  margin-top: 8px;
 }
 
 /* ── Card ────────────────────────────────────────────────────────────────── */
@@ -51,11 +55,38 @@
 .card {
   background: #fff;
   border: 1.5px solid #e5e7eb;
-  border-radius: 12px;
+  border-radius: 14px;
   padding: 24px;
   display: flex;
   flex-direction: column;
   gap: 20px;
+}
+
+/* ── Card header ─────────────────────────────────────────────────────────── */
+
+.cardHeader {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.cardTitle {
+  font-size: 15px;
+  font-weight: 700;
+  color: #111827;
+  margin: 0;
+}
+
+.cardTitleDanger {
+  color: #dc2626;
+}
+
+.cardSubtitle {
+  font-size: 13px;
+  color: #9ca3af;
+  margin: 0;
 }
 
 /* ── Info row ────────────────────────────────────────────────────────────── */

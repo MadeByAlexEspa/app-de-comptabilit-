@@ -58,45 +58,43 @@ function ActivityProfileSection({ workspace, onSaved }) {
   const unchanged = activite === (workspace.activite_type || '') && structure === (workspace.structure_type || '')
 
   return (
-    <section className={styles.section} aria-labelledby="activity-title">
-      <h2 className={styles.sectionTitle} id="activity-title">Profil d&apos;activité</h2>
-      <p className={styles.pageSubtitle} style={{ marginBottom: '16px' }}>
-        Ces informations personnalisent les catégories comptables recommandées dans vos formulaires.
-      </p>
-      <div className={styles.card}>
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="activite-type">Type d&apos;activité</label>
-            <select
-              id="activite-type"
-              className={styles.select}
-              value={activite}
-              onChange={e => { setActivite(e.target.value); setSuccess(null) }}
-            >
-              {ACTIVITE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="structure-type">Type de structure</label>
-            <select
-              id="structure-type"
-              className={styles.select}
-              value={structure}
-              onChange={e => { setStructure(e.target.value); setSuccess(null) }}
-            >
-              {STRUCTURE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
-          </div>
-          <div className={styles.inputRow} style={{ marginTop: '8px' }}>
-            <button className={styles.btn} type="submit" disabled={saving || unchanged}>
-              {saving ? 'Enregistrement…' : 'Enregistrer'}
-            </button>
-          </div>
-          {success && <p className={styles.success} role="status">{success}</p>}
-          {error   && <p className={styles.error}   role="alert">{error}</p>}
-        </form>
+    <div className={styles.card} aria-labelledby="activity-title">
+      <div className={styles.cardHeader}>
+        <h2 className={styles.cardTitle} id="activity-title">Profil d&apos;activité</h2>
+        <p className={styles.cardSubtitle}>Adapte les catégories comptables à votre secteur.</p>
       </div>
-    </section>
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="activite-type">Type d&apos;activité</label>
+          <select
+            id="activite-type"
+            className={styles.select}
+            value={activite}
+            onChange={e => { setActivite(e.target.value); setSuccess(null) }}
+          >
+            {ACTIVITE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="structure-type">Type de structure</label>
+          <select
+            id="structure-type"
+            className={styles.select}
+            value={structure}
+            onChange={e => { setStructure(e.target.value); setSuccess(null) }}
+          >
+            {STRUCTURE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          </select>
+        </div>
+        <div>
+          <button className={styles.btn} type="submit" disabled={saving || unchanged}>
+            {saving ? 'Enregistrement…' : 'Enregistrer'}
+          </button>
+        </div>
+        {success && <p className={styles.success} role="status">{success}</p>}
+        {error   && <p className={styles.error}   role="alert">{error}</p>}
+      </form>
+    </div>
   )
 }
 
@@ -127,40 +125,41 @@ function WorkspaceInfoSection({ workspace, onRenamed }) {
   }
 
   return (
-    <section className={styles.section} aria-labelledby="info-title">
-      <h2 className={styles.sectionTitle} id="info-title">Informations du workspace</h2>
-      <div className={styles.card}>
-        <div className={styles.infoRow}>
-          <span className={styles.infoLabel}>Slug</span>
-          <span className={styles.infoValue}>{workspace.slug}</span>
-        </div>
-        <form className={styles.form} onSubmit={handleSubmit}>
-          <div className={styles.field}>
-            <label className={styles.label} htmlFor="workspace-name">Nom du workspace</label>
-            <div className={styles.inputRow}>
-              <input
-                id="workspace-name"
-                className={styles.input}
-                type="text"
-                value={name}
-                onChange={e => { setName(e.target.value); setSuccess(false) }}
-                required
-                minLength={2}
-              />
-              <button
-                className={styles.btn}
-                type="submit"
-                disabled={saving || name === workspace.name}
-              >
-                {saving ? 'Enregistrement…' : 'Enregistrer'}
-              </button>
-            </div>
-          </div>
-          {success && <p className={styles.success} role="status">{success}</p>}
-          {error   && <p className={styles.error} role="alert">{error}</p>}
-        </form>
+    <div className={styles.card} aria-labelledby="info-title">
+      <div className={styles.cardHeader}>
+        <h2 className={styles.cardTitle} id="info-title">Informations</h2>
+        <p className={styles.cardSubtitle}>Identifiant et nom de votre espace de travail.</p>
       </div>
-    </section>
+      <div className={styles.infoRow}>
+        <span className={styles.infoLabel}>Slug</span>
+        <span className={styles.infoValue}>{workspace.slug}</span>
+      </div>
+      <form className={styles.form} onSubmit={handleSubmit}>
+        <div className={styles.field}>
+          <label className={styles.label} htmlFor="workspace-name">Nom du workspace</label>
+          <div className={styles.inputRow}>
+            <input
+              id="workspace-name"
+              className={styles.input}
+              type="text"
+              value={name}
+              onChange={e => { setName(e.target.value); setSuccess(false) }}
+              required
+              minLength={2}
+            />
+            <button
+              className={styles.btn}
+              type="submit"
+              disabled={saving || name === workspace.name}
+            >
+              {saving ? 'Enregistrement…' : 'Enregistrer'}
+            </button>
+          </div>
+        </div>
+        {success && <p className={styles.success} role="status">{success}</p>}
+        {error   && <p className={styles.error} role="alert">{error}</p>}
+      </form>
+    </div>
   )
 }
 
@@ -508,11 +507,11 @@ function DangerZoneSection() {
   }
 
   return (
-    <section className={styles.section} aria-labelledby="danger-title">
-      <h2 className={`${styles.sectionTitle} ${styles.sectionTitleDanger}`} id="danger-title">
-        Zone de danger
-      </h2>
+    <section className={styles.dangerSection} aria-labelledby="danger-title">
       <div className={`${styles.card} ${styles.dangerZone}`}>
+      <div className={styles.cardHeader}>
+        <h2 className={`${styles.cardTitle} ${styles.cardTitleDanger}`} id="danger-title">Zone de danger</h2>
+      </div>
         <div className={styles.dangerRow}>
           <div>
             <p className={styles.dangerLabel}>Supprimer le workspace</p>
@@ -571,7 +570,6 @@ function DangerZoneSection() {
 
 const TABS = [
   { id: 'general',     label: 'Général'     },
-  { id: 'activite',    label: 'Activité'    },
   { id: 'members',     label: 'Membres'     },
   { id: 'invitations', label: 'Invitations' },
 ]
@@ -632,18 +630,18 @@ export default function Workspace() {
       <div className={styles.tabContent}>
         {activeTab === 'general' && (
           <>
-            <WorkspaceInfoSection
-              workspace={workspace}
-              onRenamed={newName => setWorkspace(prev => ({ ...prev, name: newName }))}
-            />
+            <div className={styles.generalGrid}>
+              <WorkspaceInfoSection
+                workspace={workspace}
+                onRenamed={newName => setWorkspace(prev => ({ ...prev, name: newName }))}
+              />
+              <ActivityProfileSection
+                workspace={workspace}
+                onSaved={fields => setWorkspace(prev => ({ ...prev, ...fields }))}
+              />
+            </div>
             <DangerZoneSection />
           </>
-        )}
-        {activeTab === 'activite' && (
-          <ActivityProfileSection
-            workspace={workspace}
-            onSaved={fields => setWorkspace(prev => ({ ...prev, ...fields }))}
-          />
         )}
         {activeTab === 'members' && (
           <MembersTab
