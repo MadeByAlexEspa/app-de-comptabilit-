@@ -110,7 +110,7 @@ function WorkspaceInfoSection({ workspace, onRenamed }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setSaving(true)
-    setSuccess(false)
+    setSuccess(null)
     setError(null)
     try {
       const result = await api.renameWorkspace(name)
@@ -143,7 +143,7 @@ function WorkspaceInfoSection({ workspace, onRenamed }) {
               className={styles.input}
               type="text"
               value={name}
-              onChange={e => { setName(e.target.value); setSuccess(false) }}
+              onChange={e => { setName(e.target.value); setSuccess(null) }}
               required
               minLength={2}
             />
@@ -502,6 +502,7 @@ function DangerZoneSection() {
       logout()
     } catch (err) {
       setError(err.message)
+    } finally {
       setDeleting(false)
     }
   }

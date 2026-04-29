@@ -545,5 +545,19 @@ function getWorkspaceDb(workspaceId) {
   return wrapped;
 }
 
+function closeWorkspaceDb(workspaceId) {
+  const id = Number(workspaceId);
+  const wrapped = _workspaceDbs.get(id);
+  if (wrapped) {
+    try { wrapped.close(); } catch (_) {}
+    _workspaceDbs.delete(id);
+  }
+  const dbFile = path.join(dataDir, `${id}.db`);
+  const lockFile = dbFile + '.lock';
+  try { if (fs.existsSync(lockFile)) fs.rmSync(lockFile, { force: true }); } catch (_) {}
+  try { if (fs.existsSync(dbFile))   fs.rmSync(dbFile,   { force: true }); } catch (_) {}
+}
+
 module.exports = db;
 module.exports.getWorkspaceDb = getWorkspaceDb;
+module.exports.closeWorkspaceDb = closeWorkspaceDb;

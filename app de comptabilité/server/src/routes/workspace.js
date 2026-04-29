@@ -1,5 +1,6 @@
 const { Router } = require('express');
 const masterDb = require('../db/masterDb');
+const { closeWorkspaceDb } = require('../db/database');
 const { signToken } = require('../services/authService');
 
 const router = Router();
@@ -133,6 +134,10 @@ router.delete('/', (req, res) => {
     masterDb.run('ROLLBACK');
     throw err;
   }
+
+  // Close and delete the workspace DB file (data/{workspaceId}.db)
+  // workspace 1 uses compta.db — protected above, but guard anyway
+  if (workspaceId !== 1) closeWorkspaceDb(workspaceId);
 
   return res.json({ success: true });
 });
