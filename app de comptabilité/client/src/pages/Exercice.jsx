@@ -109,10 +109,12 @@ function PnLTab({ debut, fin }) {
 
   useEffect(() => {
     if (!debut || !fin) return
+    let ignore = false
     setLoading(true); setError(null)
     api.getPnL(debut, fin)
-      .then(d => { setData(d); setLoading(false) })
-      .catch(e => { setError(e.message); setLoading(false) })
+      .then(d => { if (!ignore) { setData(d); setLoading(false) } })
+      .catch(e => { if (!ignore) { setError(e.message); setLoading(false) } })
+    return () => { ignore = true }
   }, [debut, fin])
 
   if (loading) return <div className={pnlStyles.loading}><div className={pnlStyles.spinner} /><p>Calcul…</p></div>
@@ -409,10 +411,12 @@ function BilanTab({ debut, fin }) {
 
   useEffect(() => {
     if (!fin) return
+    let ignore = false
     setLoading(true); setError(null)
     api.getBilan(fin, debut)
-      .then(d => { setData(d); setLoading(false) })
-      .catch(e => { setError(e.message); setLoading(false) })
+      .then(d => { if (!ignore) { setData(d); setLoading(false) } })
+      .catch(e => { if (!ignore) { setError(e.message); setLoading(false) } })
+    return () => { ignore = true }
   }, [debut, fin])
 
   if (loading) return <div className={bilanStyles.loading}><div className={bilanStyles.spinner} /><p>Calcul du bilan…</p></div>

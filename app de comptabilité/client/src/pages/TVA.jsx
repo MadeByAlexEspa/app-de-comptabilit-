@@ -407,6 +407,7 @@ export default function TVA() {
   const [loading,     setLoading]     = useState(false)
   const [error,       setError]       = useState(null)
   const [splitTarget, setSplitTarget] = useState(null) // { row, type: 'facture'|'depense' }
+  const saveSeqRef = useRef(0)
 
   // ── Filters for detail tables ──────────────────────────────────────────────
   const [fTiers, setFTiers] = useState('')
@@ -439,8 +440,9 @@ export default function TVA() {
     try {
       if (type === 'facture') await api.updateFacture(id, patch)
       else                    await api.updateDepense(id, patch)
+      const seq = ++saveSeqRef.current
       const d = await api.getTVA(debut, fin)
-      setData(d)
+      if (seq === saveSeqRef.current) setData(d)
     } catch (e) {
       console.error('Erreur enregistrement TVA :', e.message)
       throw e
@@ -452,8 +454,9 @@ export default function TVA() {
     const patch = { tva_lines: tvaLines }
     if (type === 'facture') await api.updateFacture(target.id, patch)
     else                    await api.updateDepense(target.id, patch)
+    const seq = ++saveSeqRef.current
     const d = await api.getTVA(debut, fin)
-    setData(d)
+    if (seq === saveSeqRef.current) setData(d)
   }
 
   const label = useMemo(() => periodLabel(mode, year, sub), [mode, year, sub])
@@ -482,10 +485,12 @@ export default function TVA() {
 
   useEffect(() => {
     if (!debut || !fin) return
+    let ignore = false
     setLoading(true); setError(null)
     api.getTVA(debut, fin)
-      .then(d => { setData(d); setLoading(false) })
-      .catch(e => { setError(e.message); setLoading(false) })
+      .then(d => { if (!ignore) { setData(d); setLoading(false) } })
+      .catch(e => { if (!ignore) { setError(e.message); setLoading(false) } })
+    return () => { ignore = true }
   }, [debut, fin])
 
   const modeLabel = { mois: 'mensuelle', trimestre: 'trimestrielle', semestre: 'semestrielle', 'année': 'annuelle' }
