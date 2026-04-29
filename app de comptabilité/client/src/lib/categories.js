@@ -768,3 +768,42 @@ export function getCatEntrees(activite_type) {
 export function getCatSorties(activite_type) {
   return CAT_BY_ACTIVITE[activite_type]?.sorties ?? GENERIC_SORTIES
 }
+
+// ── Adapter for EntryForm (format: { label, options: string[] }) ───────────────
+
+const CODES_RECO_ENTREES = {
+  saas:         ['706', '708'],
+  conseil:      ['706', '708'],
+  evenementiel: ['706', '707', '708'],
+  commerce:     ['707', '701', '708'],
+  formation:    ['706', '74', '708'],
+  immobilier:   ['706', '708'],
+}
+
+const CODES_RECO_SORTIES = {
+  saas:         ['618', '611', '623', '641', '645', '627'],
+  conseil:      ['625', '618', '622', '627', '616', '626'],
+  evenementiel: ['613', '611', '623', '625', '627'],
+  commerce:     ['607', '606', '613', '641', '645', '623', '627'],
+  formation:    ['625', '618', '622', '613', '627'],
+  immobilier:   ['615', '613', '616', '627'],
+}
+
+function toEntryFormGroups(catList, recoCodes) {
+  const allStrings = catList.flatMap(g => g.options.map(o => o.value))
+  const groups = catList.map(g => ({ label: g.group, options: g.options.map(o => o.value) }))
+  if (!recoCodes || recoCodes.length === 0) return groups
+  const reco = recoCodes
+    .map(code => allStrings.find(s => s === code || s.startsWith(code + ' ') || s.startsWith(code + '.')))
+    .filter(Boolean)
+  if (reco.length === 0) return groups
+  return [{ label: '★ Recommandées pour votre activité', options: reco }, ...groups]
+}
+
+export function getCatEntreesGroups(activite_type) {
+  return toEntryFormGroups(getCatEntrees(activite_type), CODES_RECO_ENTREES[activite_type])
+}
+
+export function getCatSortiesGroups(activite_type) {
+  return toEntryFormGroups(getCatSorties(activite_type), CODES_RECO_SORTIES[activite_type])
+}

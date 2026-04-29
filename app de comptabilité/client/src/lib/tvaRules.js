@@ -1,50 +1,63 @@
 /**
  * Règles de TVA par catégorie PCG
  * Sources légales : CGI art. 256, 261, 278, 279, 293 B
+ *
+ * Matching par préfixe de code PCG (ex: '627', '74', '58')
+ * → couvre les sous-codes 625.1, 706.3, 741, etc. automatiquement.
  */
 
-// Catégories hors champ ou exonérées de TVA → taux forcé à 0 %, non modifiable
-export const CATEGORIES_HORS_TVA = new Set([
-  // Entrées — Capitaux propres & financement (Classe 1)
-  '101 \u2013 Capital social (apport)',
-  '108 \u2013 Apport de l\u2019exploitant',
-  '164 \u2013 Emprunts bancaires re\u00e7us',
-  '455 \u2013 Avances en compte courant associ\u00e9',
-  // Entrées — Subventions & produits financiers
-  '74 \u2013 Subventions d\u2019exploitation',
-  '76 \u2013 Produits financiers',
-  '77 \u2013 Produits exceptionnels',
-  // Sorties — Personnel (hors champ TVA)
-  '641 \u2013 R\u00e9mun\u00e9rations du personnel',
-  '645 \u2013 Charges sociales & cotisations',
-  '421 \u2013 Notes de frais du personnel',
-  // Sorties — Impôts & taxes (hors champ TVA)
-  '631 \u2013 Imp\u00f4ts, taxes et versements assimil\u00e9s sur r\u00e9mun\u00e9rations',
-  '635 \u2013 Autres imp\u00f4ts, taxes et versements assimil\u00e9s',
-  // Sorties — Charges financières (exonérées CGI art. 261 C)
-  '661 \u2013 Charges d\u2019int\u00e9r\u00eats',
-  '668 \u2013 Autres charges financi\u00e8res',
-  '671 \u2013 Charges exceptionnelles sur op\u00e9rations de gestion',
-  '675 \u2013 Valeurs comptables des \u00e9l\u00e9ments c\u00e9d\u00e9s',
-  // Sorties — Impôt sur les bénéfices
-  '695 \u2013 Imp\u00f4t sur les b\u00e9n\u00e9fices (IS)',
-  // Sorties — Dotations aux amortissements (écriture comptable, sans flux TVA)
-  '681 \u2013 Dotations aux amortissements d\u2019exploitation',
-  // Sorties — Remboursements & prélèvements (Classe 1)
-  '108 \u2013 Pr\u00e9l\u00e8vements de l\u2019exploitant',
-  '164 \u2013 Remboursement d\u2019emprunt',
-  '455 \u2013 Remboursement compte courant associ\u00e9',
-  // Sorties — Services bancaires & assurances (exonérés CGI art. 261 C)
-  '627 \u2013 Services bancaires & assimil\u00e9s',
-  '616 \u2013 Primes d\u2019assurance',
+// Codes PCG hors champ ou exonérés de TVA → taux forcé à 0 %, non modifiable
+const CODES_HORS_TVA = new Set([
+  // Capitaux propres & financement (Classe 1)
+  '101', '108', '164', '455',
+  // Subventions & produits financiers / exceptionnels
+  '74', '76', '77',
+  // Personnel (hors champ TVA)
+  '641', '645', '421',
+  // Impôts & taxes (hors champ TVA)
+  '631', '635',
+  // Charges financières (exonérées CGI art. 261 C)
+  '661', '668', '671', '675',
+  // Impôt sur les bénéfices
+  '695',
+  // Dotations aux amortissements (écriture comptable sans flux TVA)
+  '681',
+  // Services bancaires & assurances (exonérés CGI art. 261 C)
+  '627', '616',
   // Virements internes (Classe 5)
-  '58 \u2013 Virement interne entre comptes',
+  '58',
 ])
 
-// Taux par défaut par catégorie quand soumis à TVA (CGI art. 279 et 278 bis)
-export const TAUX_DEFAUT_PAR_CATEGORIE = {
-  '624 \u2013 Transports de biens':                          10,
-  '625 \u2013 D\u00e9placements, missions & r\u00e9ceptions': 10,
+// Taux par défaut par code PCG de base quand soumis à TVA (CGI art. 279 et 278 bis)
+const TAUX_DEFAUT_PAR_CODE = {
+  '624': 10,
+  '625': 10,
+}
+
+function extractCode(categorie) {
+  return String(categorie || '').match(/^(\d+(?:\.\d+)?)/)?.[1] ?? null
+}
+
+function isHorsTVA(code) {
+  if (!code) return false
+  if (CODES_HORS_TVA.has(code)) return true
+  // check base code (e.g. '741' → '74', '625.1' → '625' → not hors-TVA, but '74.1' → '74' → hors-TVA)
+  const base = code.includes('.') ? code.split('.')[0] : code.replace(/\d$/, '')
+  // walk prefix from longest to shortest until 2 digits
+  for (let len = code.length; len >= 2; len--) {
+    const prefix = code.slice(0, len)
+    if (CODES_HORS_TVA.has(prefix)) return true
+  }
+  return false
+}
+
+function getTauxDefaut(code) {
+  if (!code) return 20
+  // exact match first
+  if (TAUX_DEFAUT_PAR_CODE[code] != null) return TAUX_DEFAUT_PAR_CODE[code]
+  // base code (strip sub-code)
+  const base = code.split('.')[0]
+  return TAUX_DEFAUT_PAR_CODE[base] ?? 20
 }
 
 /**
@@ -54,9 +67,9 @@ export const TAUX_DEFAUT_PAR_CATEGORIE = {
  *   locked = false → taux suggéré (modifiable par l'utilisateur)
  */
 export function getTvaRegime(categorie) {
-  if (CATEGORIES_HORS_TVA.has(categorie)) return { taux: 0, locked: true }
-  const taux = TAUX_DEFAUT_PAR_CATEGORIE[categorie] ?? 20
-  return { taux, locked: false }
+  const code = extractCode(categorie)
+  if (isHorsTVA(code)) return { taux: 0, locked: true }
+  return { taux: getTauxDefaut(code), locked: false }
 }
 
 /**
@@ -66,12 +79,7 @@ export function getTvaRegime(categorie) {
  * Règles :
  *  - nouvelle catégorie exonérée          → taux_tva = 0  (TTC = HT)
  *  - ancienne exonérée → nouvelle taxable → taux_tva = taux par défaut
- *    (le montant HT reste inchangé, le backend recalcule TVA et TTC)
  *  - taxable → taxable                    → pas de changement de taux
- *
- * @param {string} oldCategorie
- * @param {string} newCategorie
- * @returns {{ categorie: string, taux_tva?: number }}
  */
 export function buildCategoriePatch(oldCategorie, newCategorie) {
   const patch = { categorie: newCategorie }
@@ -79,10 +87,8 @@ export function buildCategoriePatch(oldCategorie, newCategorie) {
   const newRegime = getTvaRegime(newCategorie)
 
   if (newRegime.locked) {
-    // → exonéré : TVA = 0, TTC = HT
     patch.taux_tva = 0
   } else if (oldRegime.locked && !newRegime.locked) {
-    // → était exonéré, devient taxable : appliquer le taux par défaut
     patch.taux_tva = newRegime.taux
   }
 
