@@ -33,7 +33,7 @@ export default function NotesDefrais() {
 
   const fileInputRef = useRef(null)
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
       const [notesData, accountsData] = await Promise.all([
         api.getExpenseNotes(),
@@ -49,9 +49,9 @@ export default function NotesDefrais() {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   function handleFileChange(e) {
     const f = e.target.files?.[0]

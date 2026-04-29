@@ -994,7 +994,7 @@ function QontoDetailPanel({ onClose, hasAccounts, onAccountsChange }) {
 const AI_PROVIDERS = [
   { id: 'anthropic', name: 'Anthropic', color: '#d97706', letter: 'A',
     models: [
-      { id: 'claude-opus-4-6',           label: 'Claude Opus 4.6' },
+      { id: 'claude-opus-4-7',           label: 'Claude Opus 4.7' },
       { id: 'claude-sonnet-4-6',         label: 'Claude Sonnet 4.6' },
       { id: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5' },
     ],
