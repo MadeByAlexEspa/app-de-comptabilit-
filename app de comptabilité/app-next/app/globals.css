@@ -1,0 +1,15 @@
+@import "tailwindcss";
+
+:root {
+  --color-blue:    #1a56db;
+  --color-blue-hover: #1a44b8;
+  --color-border:  #e5e7eb;
+  --color-muted:   #6b7280;
+  --color-danger:  #dc2626;
+}
+
+body {
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f9fafb;
+  color: #111827;
+}
